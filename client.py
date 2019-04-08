@@ -3,7 +3,7 @@
 import socket
 
 
-host = '129.180.124.29'
+host = '192.168.1.104'
 port = 23456
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
