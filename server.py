@@ -22,8 +22,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             in_msg = conn.recv(1024)
 
             if in_msg.decode('ascii')=="START GAME":
-                out_msg = 'POSITIONING SHIPS\n'
-                #conn.sendall(out_msg.encode('ascii'))
+                out_msg = 'POSITIONING SHIPS'
+                conn.sendall(out_msg.encode('ascii'))
                 game.setup_ship_placement()
                 game.print_board()
                 out_msg += 'SHIPS IN POSITION'

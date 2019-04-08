@@ -16,9 +16,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     print(response.decode('ascii'))
     response = s.recv(1024)
     print(response.decode('ascii'))
-    test = response=='SHIPS IN POSITION'
+    print("HERE")
     while True:
-        command = input()
+        command = input('Enter coord: ')
         bytes_sent = s.send(command.encode('ascii'))
         if bytes_sent==len(command):
             response = s.recv(1024)
