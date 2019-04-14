@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 import socket
-from game import BattleShips
+from game import ServerGame
 import secrets
 
 host = ''
@@ -15,7 +15,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
     print('Awaiting connections')
     conn, addr = server_socket.accept()
     with conn:
-        game = BattleShips()
+        game = ServerGame()
         print('Connected to client at address ', addr)
 
         while True:
@@ -39,21 +39,23 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
                     print('\nTurn Taken: ',in_msg.decode('ascii').upper(),' it was a ',turn_taken,'\n')
                     game.print_board()
                     if not game.running():
-                        out_msg = 'You have sunk all the battleships. Thanks.'
+                        out_msg = str(game.turns_taken)
                         conn.sendall(out_msg.encode('ascii'))
                         conn.close()
                         break
                 else:
-                    out_msg = 'Invalid Coordinates'
-                    conn.sendall(out_msg.encode('ascii'))
+                    #out_msg = 'Invalid Coordinates'
+                    #conn.sendall(out_msg.encode('ascii'))
+                    print('Invalid coordinates supplied')
+                    conn.close()
+                    break
                 in_msg = waiting_code
             elif in_msg==waiting_code:
                 pass
             else:
-                out_msg = 'Unrecognised command'
-                conn.sendall(out_msg.encode('ascii'))
+                #out_msg = 'Unrecognised command'
+                #conn.sendall(out_msg.encode('ascii'))
+                print("Unrecognised command supplied")
+                conn.close()
+                break
                 in_msg = waiting_code
-
-
-
-

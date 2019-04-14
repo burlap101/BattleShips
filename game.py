@@ -18,6 +18,60 @@ class BattleShips():
         self.board = np.zeros((rows, columns))
         self._running = False
         self.hit_count = 0
+        self.turns_taken = 0
+
+    def _validate_coords(self, coords):
+        try:
+            if (coords[0] in self.cols) and (int(coords[1:])-1 in self.rows):
+                return True
+            else:
+                return False
+        except ValueError:
+            return False
+
+    def ready(self):
+        return self.ready_flag
+
+    def running(self):
+        return self._running
+
+class ClientGame(BattleShips):
+
+    def print_board(self):
+        row_buf = [x for x in self.cols]
+        print(' ',' '.join(row_buf))
+        for row in np.arange(0,9,1):
+            row_buf=[]
+            for space in np.nditer(self.board[row,:]):
+                space = int(space)
+                if space==0:
+                    row_buf.append('.')
+                elif space == -1:
+                    row_buf.append('O')
+                elif space == -2:
+                    row_buf.append('X')
+
+            print(row+1, ' '.join(row_buf))
+
+    def shot_fired(self, coords):
+        if self._validate_coords(coords):
+            row = int(coords[1])-1
+            col = self.cols.index(coords[0])
+            self.turns_taken += 1
+        else:
+            return False
+
+        if self.board[row,col] <= 0:
+            self.board[row, col] = -1
+            return 'MISS'
+        elif self.board[row,col] > 0:
+            self.board[row, col] = -2
+            self.hit_count += 1
+            if self.hit_count >= 14:
+                self._running = False
+            return 'HIT'
+
+class ServerGame(BattleShips):
 
     def setup_ship_placement(self):
         random.seed()
@@ -59,15 +113,6 @@ class BattleShips():
 
             print(row+1, ' '.join(row_buf))
 
-    def _validate_coords(self, coords):
-        try:
-            if (coords[0] in self.cols) and (int(coords[1:])-1 in self.rows):
-                return True
-            else:
-                return False
-        except ValueError:
-            return False
-
     def shot_fired(self, coords):
         if self._validate_coords(coords):
             row = int(coords[1])-1
@@ -84,21 +129,3 @@ class BattleShips():
             if self.hit_count >= 14:
                 self._running = False
             return 'HIT'
-
-    def ready(self):
-        return self.ready_flag
-
-    def running(self):
-        return self._running
-
-
-
-
-
-
-
-
-
-
-
-

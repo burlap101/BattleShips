@@ -1,9 +1,10 @@
 #! /usr/bin/python3
 
 import socket
+import ClientGame
 
 
-host = '192.168.1.104'
+host = '127.0.0.1'
 port = 23456
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,7 +17,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     print(response.decode('ascii'))
     response = s.recv(1024)
     print(response.decode('ascii'))
-    print("HERE")
     while True:
         command = input('Enter coord: ')
         bytes_sent = s.send(command.encode('ascii'))
@@ -27,10 +27,3 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 break
             response = response.decode('ascii')
             print(response)
-
-
-
-
-
-
-
