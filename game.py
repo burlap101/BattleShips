@@ -16,7 +16,7 @@ class BattleShips():
         self.cols = alphabet[:columns]
         self.rows = [x for x in range(rows+1)]
         self.board = np.zeros((rows, columns))
-        self._running = False
+        self.running = False
         self.hit_count = 0
         self.turns_taken = 0
 
@@ -31,9 +31,6 @@ class BattleShips():
 
     def ready(self):
         return self.ready_flag
-
-    def running(self):
-        return self._running
 
 class ClientGame(BattleShips):
 
@@ -53,27 +50,31 @@ class ClientGame(BattleShips):
 
             print(row+1, ' '.join(row_buf))
 
-    def shot_fired(self, coords):
+    def shot_fired(self, coords, result):
         if self._validate_coords(coords):
             row = int(coords[1])-1
             col = self.cols.index(coords[0])
             self.turns_taken += 1
         else:
-            return False
+            raise ValueError
 
-        if self.board[row,col] <= 0:
-            self.board[row, col] = -1
-            return 'MISS'
-        elif self.board[row,col] > 0:
-            self.board[row, col] = -2
+        if result=='MISS':
+            self.board[row,col] = -1
+        elif result=='HIT':
+            self.board[row,col] = -2
             self.hit_count += 1
             if self.hit_count >= 14:
-                self._running = False
-            return 'HIT'
+                self.running = False
 
 class ServerGame(BattleShips):
 
+    def __init__(self):
+        super().__init__()
+        self.initialised = False
+        self.positioning = False
+
     def setup_ship_placement(self):
+        self.initialised = True
         random.seed()
         orientations = ['V','H']
         for ship,length in self.ships:
@@ -93,7 +94,8 @@ class ServerGame(BattleShips):
                             assigned=True
                 except IndexError as e:
                     pass
-            self._running = True
+            self.running = True
+
 
     def print_board(self):
         row_buf = [x for x in self.cols]
@@ -117,6 +119,7 @@ class ServerGame(BattleShips):
         if self._validate_coords(coords):
             row = int(coords[1])-1
             col = self.cols.index(coords[0])
+            self.turns_taken += 1
         else:
             return False
 
@@ -127,5 +130,5 @@ class ServerGame(BattleShips):
             self.board[row, col] = -2
             self.hit_count += 1
             if self.hit_count >= 14:
-                self._running = False
+                self.running = False
             return 'HIT'
