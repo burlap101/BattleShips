@@ -20,6 +20,24 @@ class BattleShips():
         self.hit_count = 0
         self.turns_taken = 0
 
+    def print_board(self):
+        row_buf = [x for x in self.cols]
+        print(' ',' '.join(row_buf))
+        for row in np.arange(0,9,1):
+            row_buf=[]
+            for space in np.nditer(self.board[row,:]):
+                space = int(space)
+                if space==0:
+                    row_buf.append('.')
+                elif space > 0:
+                    row_buf.append(self.ships[space-1][0])
+                elif space == -1:
+                    row_buf.append('O')
+                elif space == -2:
+                    row_buf.append('X')
+
+            print(row+1, ' '.join(row_buf))
+
     def _validate_coords(self, coords):
         try:
             if (coords[0] in self.cols) and (int(coords[1:])-1 in self.rows):
@@ -34,22 +52,6 @@ class BattleShips():
 
 class ClientGame(BattleShips):
 
-    def print_board(self):
-        row_buf = [x for x in self.cols]
-        print(' ',' '.join(row_buf))
-        for row in np.arange(0,9,1):
-            row_buf=[]
-            for space in np.nditer(self.board[row,:]):
-                space = int(space)
-                if space==0:
-                    row_buf.append('.')
-                elif space == -1:
-                    row_buf.append('O')
-                elif space == -2:
-                    row_buf.append('X')
-
-            print(row+1, ' '.join(row_buf))
-
     def shot_fired(self, coords, result):
         if self._validate_coords(coords):
             row = int(coords[1])-1
@@ -58,13 +60,21 @@ class ClientGame(BattleShips):
         else:
             raise ValueError
 
-        if result=='MISS':
+        if result[:4]=='MISS' and self.board[row,col]==0:
             self.board[row,col] = -1
-        elif result=='HIT':
+            if len(result)>4:
+                return result[4:]
+            else:
+                return''
+        elif result[:3]=='HIT' and self.board[row,col]==0:
             self.board[row,col] = -2
             self.hit_count += 1
             if self.hit_count >= 14:
                 self.running = False
+            if len(result)>3:
+                return result[3:]
+            else:
+                return ''
 
 class ServerGame(BattleShips):
 
@@ -95,25 +105,6 @@ class ServerGame(BattleShips):
                 except IndexError as e:
                     pass
             self.running = True
-
-
-    def print_board(self):
-        row_buf = [x for x in self.cols]
-        print(' ',' '.join(row_buf))
-        for row in np.arange(0,9,1):
-            row_buf=[]
-            for space in np.nditer(self.board[row,:]):
-                space = int(space)
-                if space==0:
-                    row_buf.append('.')
-                elif space > 0:
-                    row_buf.append(self.ships[space-1][0])
-                elif space == -1:
-                    row_buf.append('O')
-                elif space == -2:
-                    row_buf.append('X')
-
-            print(row+1, ' '.join(row_buf))
 
     def shot_fired(self, coords):
         if self._validate_coords(coords):

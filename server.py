@@ -8,6 +8,9 @@ import selectors
 sel = selectors.DefaultSelector()
 active_games = {}
 
+host = ''
+port = 23456
+
 def accept_wrapper(key, mask):
     sock = key.fileobj
     conn, addr = sock.accept()  # Should be ready
@@ -19,21 +22,36 @@ def accept_wrapper(key, mask):
 
 def service_connection(key, mask):
     sock = key.fileobj
-    data = key.data
-    if active_games[sock].running:
+    out_msg = None
+    if active_games[sock].hit_count==14:
+        if mask & selectors.EVENT_WRITE:
+            sock.sendall(str(active_games[sock].turns_taken).encode('ascii'))
+            print(
+                "Game with ",
+                sock.getpeername(),
+                " finished in ",
+                active_games[sock].turns_taken,
+                " moves"
+            )
+            del active_games[sock]
+            sel.unregister(sock)
+            sock.close()
+
+    elif active_games[sock].running:
         if mask & selectors.EVENT_READ:
             recv_data = sock.recv(1024)  # Should be ready to read
             if recv_data:
-                data.outb += recv_data
+                turn_taken = active_games[sock].shot_fired(recv_data.decode('ascii'))
+                if turn_taken:
+                    out_msg = turn_taken.encode('ascii')
             else:
-                print('closing connection to', data.addr)
+                print('closing connection to', sock.getpeername())
                 sel.unregister(sock)
                 sock.close()
         if mask & selectors.EVENT_WRITE:
-            if data.outb:
-                print('echoing', repr(data.outb), 'to', data.addr)
-                sent = sock.send(data.outb)  # Should be ready to write
-                data.outb = data.outb[sent:]
+            if out_msg:
+                sent = sock.send(out_msg)  # Should be ready to write
+                out_msg = out_msg[sent:]
     elif active_games[sock].initialised==False:
         if mask & selectors.EVENT_READ:
             recv_data = sock.recv(len("START GAME"))
@@ -41,25 +59,24 @@ def service_connection(key, mask):
                 sock.sendall('POSITIONING SHIPS'.encode('ascii'))
                 active_games[sock].setup_ship_placement()
                 sock.sendall('SHIPS IN POSITION'.encode('ascii'))
+                active_games[sock].print_board()
             elif recv_data:
                 print('Invalid command received. Closing connection: ', sock)
+                sel.unregister(sock)
                 sock.close()
             else:
-                print('Connection closed by client: ', sock)
+                print('Connection closed by client: ', sock.getpeername())
+                sel.unregister(sock)
                 sock.close()
         if mask & selectors.EVENT_WRITE:
-            if data.outb:
-                sent = sock.send(data.outb)    # Keep track of sent data bytes
-                data.outb = data.outb[sent:]
+            if out_msg:
+                sent = sock.send(out_msg)    # Keep track of sent data bytes
+                out_msg = out_msg[sent:]
     else:
-        data.outb = str(active_games[sock].turns_taken).encode('ascii')
+        out_msg = str(active_games[sock].turns_taken).encode('ascii')
         if mask & selectors.EVENT_WRITE:
-            sent = sock.send(data.outb)    # Keep track of sent data bytes
-            data.outb = data.outb[sent:]
-
-
-host = ''
-port = 23456
+            sent = sock.send(out_msg)    # Keep track of sent data bytes
+            out_msg = out_msg[sent:]
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
     server_socket.bind((host, port))
