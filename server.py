@@ -1,7 +1,16 @@
 #! venv/bin/python3
+#
+#
+#
+#
+#
+#
+#
+#
 
 import socket
 from game import ServerGame
+import game
 import secrets
 import selectors
 
@@ -10,6 +19,7 @@ active_games = {}
 
 host = ''
 port = 23456
+EOM = b'\x0A'
 
 def accept_wrapper(key, mask):
     sock = key.fileobj
@@ -25,7 +35,7 @@ def service_connection(key, mask):
     out_msg = None
     if active_games[sock].hit_count==14:
         if mask & selectors.EVENT_WRITE:
-            sock.sendall(str(active_games[sock].turns_taken).encode('ascii'))
+            sock.sendall(str(active_games[sock].turns_taken).encode('ascii')+EOM)
             print(
                 "Game with ",
                 sock.getpeername(),
@@ -41,24 +51,38 @@ def service_connection(key, mask):
         if mask & selectors.EVENT_READ:
             recv_data = sock.recv(1024)  # Should be ready to read
             if recv_data:
-                turn_taken = active_games[sock].shot_fired(recv_data.decode('ascii'))
-                if turn_taken:
-                    out_msg = turn_taken.encode('ascii')
+                messages = recv_data.split(EOM)
+                if messages[-1]==b'' and len(messages)>1:
+                    messages = messages[:-1]
+                for message in messages:
+                    turn_taken = active_games[sock].shot_fired(message.decode('ascii'))
+                    if turn_taken:
+                        sock.sendall(turn_taken.encode('ascii') + EOM)
+                        print(
+                            'Turn ',
+                            message.decode('ascii'),
+                            ' taken by ',
+                            sock.getpeername(),
+                            ' was a ',
+                            turn_taken
+                        )
+                    else:
+                        print('Invalid command received. Closing connection: ', sock)
+                        sel.unregister(sock)
+                        sock.close()
+
             else:
                 print('closing connection to', sock.getpeername())
                 sel.unregister(sock)
                 sock.close()
-        if mask & selectors.EVENT_WRITE:
-            if out_msg:
-                sent = sock.send(out_msg)  # Should be ready to write
-                out_msg = out_msg[sent:]
-    elif active_games[sock].initialised==False:
+    else:
         if mask & selectors.EVENT_READ:
-            recv_data = sock.recv(len("START GAME"))
-            if recv_data.decode('ascii')=="START GAME":
-                sock.sendall('POSITIONING SHIPS'.encode('ascii'))
+            recv_data = sock.recv(1024)
+            messages = recv_data.split(EOM)
+            if messages[0]==b'START GAME':
+                sock.sendall('POSITIONING SHIPS'.encode('ascii')+EOM)
                 active_games[sock].setup_ship_placement()
-                sock.sendall('SHIPS IN POSITION'.encode('ascii'))
+                sock.sendall('SHIPS IN POSITION'.encode('ascii')+EOM)
                 active_games[sock].print_board()
             elif recv_data:
                 print('Invalid command received. Closing connection: ', sock)
@@ -68,15 +92,7 @@ def service_connection(key, mask):
                 print('Connection closed by client: ', sock.getpeername())
                 sel.unregister(sock)
                 sock.close()
-        if mask & selectors.EVENT_WRITE:
-            if out_msg:
-                sent = sock.send(out_msg)    # Keep track of sent data bytes
-                out_msg = out_msg[sent:]
-    else:
-        out_msg = str(active_games[sock].turns_taken).encode('ascii')
-        if mask & selectors.EVENT_WRITE:
-            sent = sock.send(out_msg)    # Keep track of sent data bytes
-            out_msg = out_msg[sent:]
+
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
     server_socket.bind((host, port))

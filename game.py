@@ -1,6 +1,8 @@
 import numpy as np
 import random
-import os
+import os, sys
+
+GAMEPORT = random.randint(1025,30000)  # Generate port randomly during testing
 
 class BattleShips():
 
@@ -20,9 +22,9 @@ class BattleShips():
         self.hit_count = 0
         self.turns_taken = 0
 
-    def print_board(self):
+    def print_board(self, file=sys.stdout):
         row_buf = [x for x in self.cols]
-        print(' ',' '.join(row_buf))
+        print(' ',' '.join(row_buf), file=file)
         for row in np.arange(0,9,1):
             row_buf=[]
             for space in np.nditer(self.board[row,:]):
@@ -36,7 +38,7 @@ class BattleShips():
                 elif space == -2:
                     row_buf.append('X')
 
-            print(row+1, ' '.join(row_buf))
+            print(row+1, ' '.join(row_buf), file=file)
 
     def _validate_coords(self, coords):
         try:
@@ -44,7 +46,7 @@ class BattleShips():
                 return True
             else:
                 return False
-        except ValueError:
+        except (ValueError, IndexError):
             return False
 
     def ready(self):
@@ -52,29 +54,27 @@ class BattleShips():
 
 class ClientGame(BattleShips):
 
+    def __init__(self):
+        super().__init__()
+        self.running = True
+
     def shot_fired(self, coords, result):
         if self._validate_coords(coords):
             row = int(coords[1])-1
             col = self.cols.index(coords[0])
             self.turns_taken += 1
         else:
-            raise ValueError
+            return False
 
         if result[:4]=='MISS' and self.board[row,col]==0:
             self.board[row,col] = -1
-            if len(result)>4:
-                return result[4:]
-            else:
-                return''
         elif result[:3]=='HIT' and self.board[row,col]==0:
             self.board[row,col] = -2
             self.hit_count += 1
             if self.hit_count >= 14:
                 self.running = False
-            if len(result)>3:
-                return result[3:]
-            else:
-                return ''
+
+        return True
 
 class ServerGame(BattleShips):
 
