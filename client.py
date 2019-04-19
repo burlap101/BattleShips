@@ -37,13 +37,12 @@ class ClientBackend():
                 messages = messages[:-1]  # last split will produce blank string need to filter out
             for message in messages:
                 msg = message.decode('ascii')
-                print(msg)
                 if msg=='SHIPS IN POSITION':    # only accept two messages at start of game
                     intialising = False
                 elif msg=='POSITIONING SHIPS':
                     pass
                 else:
-                    print('There was an issue with the response from server. Shutting down.')
+                    print('There was an issue with the response from server. Shutting down.', flush=True)
                     s.close()
                     return False
         return s
@@ -54,17 +53,37 @@ class ClientBackend():
             if bytes_sent==len(command)+1:
                 response = self.s.recv(1024)
                 if not response:        # empty data received means server closed connection
-                    print('connection closed by server')
+                    print('connection closed by server', flush=True)
                     self.s.close()
                     raise OSError
                 messages = response.split(EOM)
+                if len(messages)>1 and messages[-1]==b'':
+                    messages = messages[:-1]
                 for message in messages:
                     msg = message.decode('ascii')
-                    shot = self.game.shot_fired(command.upper(), msg)
-                    if not shot and self.game.hit_count!=14:
-                        raise ValueError
                     print(msg)
-                    return msg
+                    shot = self.game.shot_fired(command.upper(), msg)
+                    if (not shot) and (self.game.hit_count!=14):
+                        print('invalid protocol response received')
+                        raise OSError
+                    elif self.game.hit_count == 14:
+                        try:  # Have two shots at waiting for turns value to come through.
+                            if int(message) == self.game.turns_taken:
+                                return msg      # Error checking returned value
+                            else:
+                                print("There was a mismatch between server and client turns recorded")
+                                raise OSError
+                        except ValueError:
+                            response = self.s.recv(1024)
+                            stt = response.split(EOM)[-2]
+                            if int(stt.decode('ascii')) == self.game.turns_taken:
+                                return msg
+                            else:
+                                print("There was a mismatch between server and client turns recorded")
+                                raise OSError
+
+                return [x.decode('ascii') for x in messages]
+
         else:
             return False
 

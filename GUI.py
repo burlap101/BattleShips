@@ -6,53 +6,57 @@
 #
 #
 
-from tkinter import *
+import tkinter as tk
 from tkinter import messagebox
-from tkinter.ttk import *
+from tkinter import ttk
 from client import ClientBackend
+import sys
 import numpy as np
 
-class Application(Frame):
+
+class Application(tk.Frame):
     # GUI for the client using Tk
-    def __init__(self, master=None):
-        self.backend = ClientBackend()
-        super().__init__(master)
+    def __init__(self, port, master=None):
+        self.backend = ClientBackend(port=port)
+        super().__init__(master, bg='SlateGray3')
         self.master = master
         self.pack()
         self.create_widgets()
 
     def create_widgets(self):
-        self.board_frame = Frame(self)
+        frame_bg='SlateGray3'
+        self.board_frame = tk.Frame(self, background=frame_bg)
         self.board_frame.pack()
-        coords_frame = Frame(self)
+        coords_frame = tk.Frame(self,background=frame_bg)
         coords_frame.pack(anchor='w', padx=10)
-        controls_frame = Frame(self)
+        controls_frame = tk.Frame(self,background=frame_bg)
         controls_frame.pack(anchor='w', padx=10, pady=10)
 
         #creating a grid of buttons to represent the board
         self.create_board()
         #self.board_label = Label(board_frame, text="")
         #self.render_board()
-        self.coords_entry = Entry(coords_frame, width=3)
-        self.fire_button = Button(controls_frame, text="Fire!!", command=self.fire_button_pressed)
-        self.response_label = Label(controls_frame, text="Server Last Response:    ")
+        self.coords_entry = ttk.Entry(coords_frame, width=3)
+        self.fire_button = ttk.Button(controls_frame, text="Fire!!", command=self.fire_button_pressed)
+        self.response_label = tk.Label(controls_frame, text="Server Last Response:    ", bg=frame_bg)
 
         #self.board_label.pack()
-        Label(coords_frame, text="Enter Coordinates: ").pack(side='left')
-        self.coords_entry.pack(side='left')
+        tk.Label(coords_frame, text="Enter Coordinates: ", bg=frame_bg).pack(side='left', anchor='n')
+        self.coords_entry.pack(side='left', pady=5, anchor='n')
         self.fire_button.pack(side='left')
         self.response_label.pack(side='left', padx=5)
         opening_message = 'Press the buttons on the grid or enter the coordinates and Fire!!!\n'
         opening_message += 'O - Represents a miss\n'
         opening_message += 'X - Represents a hit\n'
-        opening_message += '. - Represents a location that hasn\'t been targeted\n'
+        opening_message += '.  - Represents a location that hasn\'t been targeted\n'
         opening_message += '\nCreated by Joe Crowley\n'
         opening_message += 'UNE Student ID: 220202294\n'
         opening_message += '\nIcon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY'
         messagebox.showinfo('Game Ready', opening_message)
 
     def create_board(self):
-        button_width=3
+        button_bg='SlateGray2'
+        button_width=1
         self.board_buttons = {}
         board = self.backend.get_board()
         nrows, ncols = board.shape
@@ -62,22 +66,29 @@ class Application(Frame):
         rows = [x+1 for x in range(nrows)]
         colnum = rows.copy()
         for col, colnum in zip(cols, rows):
-            Button(
+            tk.Button(
                 self.board_frame,
+                fg='white',
+                bg='black',
                 text=col,
+                font='bold',
                 width=button_width,
                 state='disabled'
             ).grid(column=colnum, row=0)
         for row in rows:
-            Button(
+            tk.Button(
                 self.board_frame,
+                fg='white',
+                bg='black',
                 text=str(row),
+                font='bold',
                 width=button_width,
                 state='disabled'
             ).grid(column=0, row=row)
             for col, colnum in zip(cols, rows):
-                self.board_buttons[col+str(row)] = Button(
+                self.board_buttons[col+str(row)] = tk.Button(
                     self.board_frame,
+                    background=button_bg,
                     text='.',
                     width=button_width,
                     command= lambda x=(col+str(row)): self.board_button_pressed(x)
@@ -91,12 +102,12 @@ class Application(Frame):
             miss_text = 'O'
             response = self.backend.take_shot(coords)
             if response:
-                self.response_label.config(text="Server Last Response: " + response)
-                if response == 'HIT':
-                    self.board_buttons[coords].config(text=hit_text)
-                elif response == 'MISS' and self.board_buttons[coords]['text'] != hit_text:
-                    self.board_buttons[coords].config(text=miss_text)
-                if self.backend.game_running() == FALSE:
+                self.response_label.config(text="Server Last Response: " + response[-1])
+                if response[-1] == 'HIT':
+                    self.board_buttons[coords].config(text=hit_text, bg='red')
+                elif response[-1] == 'MISS' and self.board_buttons[coords]['text'] != hit_text:
+                    self.board_buttons[coords].config(text=miss_text, bg='blue', fg='white')
+                if self.backend.game_running() == False:
                     moves = self.backend.get_moves()
                     messagebox.showinfo('Congratulations!','Game completed in ' + str(moves) + ' moves')
                     self.master.destroy()
@@ -109,14 +120,23 @@ class Application(Frame):
         if coords:
             if self.backend.validate_coords(coords.upper()):
                 self.board_button_pressed(coords.upper())
-                self.coords_entry.delete(0, END)
+                self.coords_entry.delete(0, tk.END)
             else:
                 self.response_label.config(text='Bad coordinates entered')
-                self.coords_entry.delete(0, END)
+                self.coords_entry.delete(0, tk.END)
 
-root = Tk()
+if len(sys.argv) > 2:
+    host = sys.argv[1]
+    port = int(sys.argv[2])
+    if port <= 1024 or port > 65535:
+        print("Port Number outside of useable range")
+        raise ValueError
+else:
+    port = 23456
+
+root = tk.Tk()
 root.title('Battleships!!!')
-imgicon = PhotoImage(file='battleship.png')
+imgicon = tk.PhotoImage(file='battleship.png')
 root.call('wm', 'iconphoto', root._w, imgicon)
-app = Application(master=root)
+app = Application(port, master=root)
 app.mainloop()

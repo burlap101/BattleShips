@@ -1,30 +1,37 @@
 #! venv/bin/python3
 #
-#
-#
-#
-#
-#
+# Server protocol and socket handling. Allows for multiple clients
+# with unique games to all play at once using selectors module and creating
+# a new ServerGame instance. 
 #
 #
 
 import socket
 from game import ServerGame
 import game
-import secrets
 import selectors
+import sys
 
 sel = selectors.DefaultSelector()
 active_games = {}
 
 host = ''
-port = 23456
+# get the port number from command line if supplied
+if len(sys.argv) > 1:
+    port = int(sys.argv[1])
+    if port <= 1024 or port > 65535:
+        print("Port Number outside of useable range", flush=True)
+        raise ValueError
+else:
+    port = 23456
+
 EOM = b'\x0A'
+
 
 def accept_wrapper(key, mask):
     sock = key.fileobj
     conn, addr = sock.accept()  # Should be ready
-    print('accepted', conn, 'from', addr)
+    print('accepted', conn, 'from', addr, flush=True)
     conn.setblocking(False)
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, service_connection)
@@ -41,7 +48,8 @@ def service_connection(key, mask):
                 sock.getpeername(),
                 " finished in ",
                 active_games[sock].turns_taken,
-                " moves"
+                " moves",
+                flush=True
             )
             del active_games[sock]
             sel.unregister(sock)
@@ -64,15 +72,16 @@ def service_connection(key, mask):
                             ' taken by ',
                             sock.getpeername(),
                             ' was a ',
-                            turn_taken
+                            turn_taken,
+                            flush=True
                         )
                     else:
-                        print('Invalid command received. Closing connection: ', sock)
+                        print('Invalid command received. Closing connection: ', sock, flush=True)
                         sel.unregister(sock)
                         sock.close()
 
             else:
-                print('closing connection to', sock.getpeername())
+                print('closing connection to', sock.getpeername(), flush=True)
                 sel.unregister(sock)
                 sock.close()
     else:
@@ -85,11 +94,11 @@ def service_connection(key, mask):
                 sock.sendall('SHIPS IN POSITION'.encode('ascii')+EOM)
                 active_games[sock].print_board()
             elif recv_data:
-                print('Invalid command received. Closing connection: ', sock)
+                print('Invalid command received. Closing connection: ', sock, flush=True)
                 sel.unregister(sock)
                 sock.close()
             else:
-                print('Connection closed by client: ', sock.getpeername())
+                print('Connection closed by client: ', sock.getpeername(), flush=True)
                 sel.unregister(sock)
                 sock.close()
 

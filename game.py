@@ -1,8 +1,15 @@
+# Classes for handling game logic. BattleShips is common game functionality
+# between client and server. ClientGame is client specific methods and attributes
+# ServerGame is server specific methods and attributes. 
+#
+#
+#
+#
+
 import numpy as np
 import random
 import os, sys
 
-GAMEPORT = random.randint(1025,30000)  # Generate port randomly during testing
 
 class BattleShips():
 
@@ -24,7 +31,7 @@ class BattleShips():
 
     def print_board(self, file=sys.stdout):
         row_buf = [x for x in self.cols]
-        print(' ',' '.join(row_buf), file=file)
+        print(' ',' '.join(row_buf), file=file, flush=True)
         for row in np.arange(0,9,1):
             row_buf=[]
             for space in np.nditer(self.board[row,:]):
@@ -38,7 +45,7 @@ class BattleShips():
                 elif space == -2:
                     row_buf.append('X')
 
-            print(row+1, ' '.join(row_buf), file=file)
+            print(row+1, ' '.join(row_buf), file=file, flush=True)
 
     def _validate_coords(self, coords):
         try:
@@ -51,6 +58,7 @@ class BattleShips():
 
     def ready(self):
         return self.ready_flag
+
 
 class ClientGame(BattleShips):
 
@@ -75,6 +83,7 @@ class ClientGame(BattleShips):
                 self.running = False
 
         return True
+
 
 class ServerGame(BattleShips):
 
