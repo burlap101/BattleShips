@@ -1,5 +1,6 @@
 #! /bin/bash
 
+# if any arguments supplied will attempt to conenct using them otherwise defaults are used from within the .py files. 
 if [ $# -gt 1 ]; then
   ping=`ping -c 1 $1 | grep bytes | wc -l`
   if [ $ping -gt 1 ]; then
