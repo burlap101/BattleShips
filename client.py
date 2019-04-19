@@ -57,7 +57,8 @@ class ClientBackend():
                     self.s.close()
                     raise OSError
                 messages = response.split(EOM)
-                if len(messages)>1 and messages[-1]==b'':
+                shots = []
+                if len(messages)>1 and messages[-1]==b'':  # get rid of blank list item due to split op.
                     messages = messages[:-1]
                 for message in messages:
                     msg = message.decode('ascii')
@@ -69,7 +70,7 @@ class ClientBackend():
                     elif self.game.hit_count == 14:
                         try:  # Have two shots at waiting for turns value to come through.
                             if int(message) == self.game.turns_taken:
-                                return msg      # Error checking returned value
+                                shots.append(msg)      # Error checking returned value
                             else:
                                 print("There was a mismatch between server and client turns recorded")
                                 raise OSError
@@ -77,12 +78,14 @@ class ClientBackend():
                             response = self.s.recv(1024)
                             stt = response.split(EOM)[-2]
                             if int(stt.decode('ascii')) == self.game.turns_taken:
-                                return msg
+                                shots.append(msg)
                             else:
                                 print("There was a mismatch between server and client turns recorded")
                                 raise OSError
+                    else:
+                        shots.append(msg)
 
-                return [x.decode('ascii') for x in messages]
+                return [x for x in shots]
 
         else:
             return False
@@ -95,6 +98,9 @@ class ClientBackend():
 
     def get_moves(self):
         return self.game.turns_taken
+
+    def get_hits(self):
+        return self.game.hit_count
 
     def validate_coords(self, coords):
         return self.game._validate_coords(coords)

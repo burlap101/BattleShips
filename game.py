@@ -1,6 +1,6 @@
 # Classes for handling game logic. BattleShips is common game functionality
 # between client and server. ClientGame is client specific methods and attributes
-# ServerGame is server specific methods and attributes. 
+# ServerGame is server specific methods and attributes.
 #
 #
 #
@@ -66,6 +66,7 @@ class ClientGame(BattleShips):
         super().__init__()
         self.running = True
 
+    # this method validates response from server and updates board client side.
     def shot_fired(self, coords, result):
         if self._validate_coords(coords):
             row = int(coords[1])-1

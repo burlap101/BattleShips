@@ -100,17 +100,18 @@ class Application(tk.Frame):
             print(coords)
             hit_text = 'X'
             miss_text = 'O'
-            response = self.backend.take_shot(coords)
-            if response:
-                self.response_label.config(text="Server Last Response: " + response[-1])
-                if response[-1] == 'HIT':
-                    self.board_buttons[coords].config(text=hit_text, bg='red')
-                elif response[-1] == 'MISS' and self.board_buttons[coords]['text'] != hit_text:
-                    self.board_buttons[coords].config(text=miss_text, bg='blue', fg='white')
-                if self.backend.game_running() == False:
-                    moves = self.backend.get_moves()
-                    messagebox.showinfo('Congratulations!','Game completed in ' + str(moves) + ' moves')
-                    self.master.destroy()
+            responses = self.backend.take_shot(coords)
+            if responses:
+                for response in responses:
+                    self.response_label.config(text="Server Last Response: " + response)
+                    if response == 'HIT':
+                        self.board_buttons[coords].config(text=hit_text, bg='red')
+                    elif response == 'MISS' and self.board_buttons[coords]['text'] != hit_text:
+                        self.board_buttons[coords].config(text=miss_text, bg='blue', fg='white')
+                    if self.backend.get_hits()==14 and self.backend.game_running() == False:
+                        moves = self.backend.get_moves()  # error checking of returned moves handled in client.py
+                        messagebox.showinfo('Congratulations!','Game completed in ' + str(moves) + ' moves')
+                        self.master.destroy()
         except OSError:
             messagebox.showerror('Connection Error','Connection with server closed unexpectedly, game will exit.')
             self.master.destroy()
