@@ -14,7 +14,7 @@ elif [ $# -gt 0 ]; then
   if [ $1 = "-h" ]; then
     cat client_readme.txt
   else
-    echo 'Supply host and port as separate arguments (i.e. with a space between each)'
+    echo "Supply host and port as separate arguments (i.e. with a space between each)"
   fi
 
 else
