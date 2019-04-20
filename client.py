@@ -90,6 +90,7 @@ class ClientBackend():
         else:
             return False
 
+    # methods below serve as access points for GUI to retrieve ClientGame instance attributes and validate_coords method
     def get_board(self):
         return self.game.board
 

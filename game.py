@@ -14,12 +14,13 @@ import os, sys
 class BattleShips():
 
     def __init__(self, rows=9, columns=9):
+        # Could expand the board if desired by entering arguments at object instantiation
         self.ships = [
             ('A',2),
             ('L',3),
             ('H',4),
             ('C',5),
-        ]
+        ]   # list of tuples to represent the ships.
 
         alphabet = 'abcdefghijklmnopqrstuvwxyz'.upper()
         self.cols = alphabet[:columns]
@@ -93,7 +94,7 @@ class ServerGame(BattleShips):
         self.initialised = False
         self.positioning = False
 
-    def setup_ship_placement(self):
+    def setup_ship_placement(self):   # randomly place ships on board
         self.initialised = True
         random.seed()
         orientations = ['V','H']

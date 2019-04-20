@@ -1,7 +1,7 @@
 #! venv/bin/python3
 # File used for testing protocol either client or server side.
-# Command line interaction. 
-#
+# Command line interaction only. Supply one or two args to pose as server
+# or client respectively. Set up other side with corresponding recipient. 
 #
 #
 #

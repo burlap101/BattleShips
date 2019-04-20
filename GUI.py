@@ -34,8 +34,6 @@ class Application(tk.Frame):
 
         #creating a grid of buttons to represent the board
         self.create_board()
-        #self.board_label = Label(board_frame, text="")
-        #self.render_board()
         self.coords_entry = ttk.Entry(coords_frame, width=3)
         self.fire_button = ttk.Button(controls_frame, text="Fire!!", command=self.fire_button_pressed)
         self.response_label = tk.Label(controls_frame, text="Server Last Response:    ", bg=frame_bg)
@@ -54,7 +52,7 @@ class Application(tk.Frame):
         opening_message += '\nIcon made by Freepik from www.flaticon.com is licensed by CC 3.0 BY'
         messagebox.showinfo('Game Ready', opening_message)
 
-    def create_board(self):
+    def create_board(self):   # board consists of a grid of button widgets.
         button_bg='SlateGray2'
         button_width=1
         self.board_buttons = {}
@@ -95,6 +93,8 @@ class Application(tk.Frame):
                 )
                 self.board_buttons[col+str(row)].grid(column = colnum, row=row)
 
+    # Callbacks below for the different GUI interactions.
+
     def board_button_pressed(self, coords):
         try:
             print(coords)
@@ -125,6 +125,9 @@ class Application(tk.Frame):
             else:
                 self.response_label.config(text='Bad coordinates entered')
                 self.coords_entry.delete(0, tk.END)
+
+
+
 
 if len(sys.argv) > 2:
     host = sys.argv[1]
