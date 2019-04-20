@@ -110,6 +110,7 @@ class Application(tk.Frame):
                         self.board_buttons[coords].config(text=miss_text, bg='blue', fg='white')
                     if self.backend.get_hits()==14 and self.backend.game_running() == False:
                         moves = self.backend.get_moves()  # error checking of returned moves handled in client.py
+                        self.response_label.config(text="Server Last Response: " + str(moves))
                         messagebox.showinfo('Congratulations!','Game completed in ' + str(moves) + ' moves')
                         self.master.destroy()
         except OSError:
