@@ -3,7 +3,7 @@
 This is an interpretation of the classic battleships game.
 
 ## Author
-Joe Crowley - Masters of Computer Science Student
+Joe Crowley - Master of Computer Science Student
 - UNE ID: 220202294
  
 
