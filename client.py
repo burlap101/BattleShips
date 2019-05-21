@@ -48,7 +48,10 @@ class ClientBackend():
         return s
 
     def take_shot(self, command):
-        if self.game._validate_coords(command.upper()):
+        # This method takes the users chosen shot, validates, then sends and interprets the message received from
+        # the server.
+
+        if self.game.validate_coords(command.upper()):
             bytes_sent = self.s.send(command.upper().encode('ascii')+EOM)
             if bytes_sent==len(command)+1:
                 response = self.s.recv(1024)
@@ -104,4 +107,4 @@ class ClientBackend():
         return self.game.hit_count
 
     def validate_coords(self, coords):
-        return self.game._validate_coords(coords)
+        return self.game.validate_coords(coords)

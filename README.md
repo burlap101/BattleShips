@@ -22,14 +22,14 @@ pip3 install numpy==1.16.2
 
 To start a Battleships server, open a terminal and enter:
 ```bash
-./server.sh [port]  
+./startServer.sh [port]  
 ```
 Optional port argument will listen for client connections on that port. 
 If omitted then the server will listen on port 23456.  
 
 To start a client, open another terminal or a terminal on another machine and enter:
 ```bash
-./client.sh [host] [port]
+./startClient.sh [host] [port]
 ```
 None or both of the optional arguments must be specified for the client to execute. 
 ```host```  specifies the IP address or domain name of the battlehships server, which defaults to ```localhost``` (127.0.0.1), if omitted.

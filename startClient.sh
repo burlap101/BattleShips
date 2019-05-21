@@ -1,10 +1,10 @@
 #! /bin/bash
 
-# if any arguments supplied will attempt to conenct using them otherwise defaults are used from within the .py files. 
+# if any arguments supplied will attempt to connect using them otherwise defaults are used from within the .py files.
 if [ $# -gt 1 ]; then
   ping=`ping -c 1 $1 | grep bytes | wc -l`
   if [ $ping -gt 1 ]; then
-    #developed using a virtualenv so need to make distinction
+    # developed using a virtualenv so need to make distinction
     wpython=`which python3`
     $wpython GUI.py $1 $2
   else

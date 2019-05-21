@@ -8,7 +8,6 @@
 
 import socket
 from game import ServerGame
-import game
 import selectors
 import sys
 

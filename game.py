@@ -2,16 +2,15 @@
 # between client and server. ClientGame is client specific methods and attributes
 # ServerGame is server specific methods and attributes.
 #
-#
-#
-#
+
 
 import numpy as np
 import random
-import os, sys
+import sys
 
 
 class BattleShips():
+    # Class and common methods between the client and server for game functionality
 
     def __init__(self, rows=9, columns=9):
         # Could expand the board if desired by entering arguments at object instantiation
@@ -48,7 +47,7 @@ class BattleShips():
 
             print(row+1, ' '.join(row_buf), file=file, flush=True)
 
-    def _validate_coords(self, coords):
+    def validate_coords(self, coords):
         try:
             if (coords[0] in self.cols) and (int(coords[1:])-1 in self.rows):
                 return True
@@ -56,9 +55,6 @@ class BattleShips():
                 return False
         except (ValueError, IndexError):
             return False
-
-    def ready(self):
-        return self.ready_flag
 
 
 class ClientGame(BattleShips):
@@ -69,7 +65,7 @@ class ClientGame(BattleShips):
 
     # this method validates response from server and updates board client side.
     def shot_fired(self, coords, result):
-        if self._validate_coords(coords):
+        if self.validate_coords(coords):
             row = int(coords[1])-1
             col = self.cols.index(coords[0])
             self.turns_taken += 1
@@ -118,7 +114,7 @@ class ServerGame(BattleShips):
             self.running = True
 
     def shot_fired(self, coords):
-        if self._validate_coords(coords):
+        if self.validate_coords(coords):
             row = int(coords[1])-1
             col = self.cols.index(coords[0])
             self.turns_taken += 1

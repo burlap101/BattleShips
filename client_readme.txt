@@ -1,4 +1,4 @@
-usage: client.sh [host] [port]
+usage: startClient.sh [host] [port]
 
 [host] and [port] must both be specified if either to be used. If not supplied then default values used, which may not correspond to running server.
 
