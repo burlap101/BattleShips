@@ -20,7 +20,7 @@ EOM = b'\x0A'
 class ClientBackend():
 
     def __init__(self, host='127.0.0.1', port=23456):
-        self.crypto = ClientCrypto()
+        self.crypto = ClientCrypto()    # handles all the encryption and decryption
         self.dh_key_verified = False
         self.host=host
         self.port=port
@@ -31,6 +31,7 @@ class ClientBackend():
             raise OSError
 
     def socket_setup(self):
+        # setup the TCP socket for communications
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Initialising TCP socket
         s.connect((self.host, self.port))
         ciphertext=self.crypto.encrypt_msg_rsa(b'START GAME'+EOM)

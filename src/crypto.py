@@ -51,4 +51,4 @@ class CryptoCommon():
         return self.fern.encrypt(message)
 
     def decrypt_msg_fernet(self, token):
-        return self.fern.decrypt(token)     # TODO: insert ttl arg
+        return self.fern.decrypt(token, ttl=self.TTL)     # TODO: insert ttl arg

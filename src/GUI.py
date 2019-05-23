@@ -141,7 +141,7 @@ else:
 
 root = tk.Tk()
 root.title('Battleships!!!')
-imgicon = tk.PhotoImage(file='battleship.png')
+imgicon = tk.PhotoImage(file='docs/battleship.png')
 root.call('wm', 'iconphoto', root._w, imgicon)
 app = Application(port, master=root)
 app.mainloop()

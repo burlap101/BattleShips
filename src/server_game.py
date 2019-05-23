@@ -1,3 +1,7 @@
+# Classes for handling game logic. BattleShips is common game functionality
+# between client and server. ClientGame is client specific methods and attributes
+# ServerGame is server specific methods and attributes.
+
 from game import BattleShips
 import random
 import numpy as np

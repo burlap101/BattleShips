@@ -3,7 +3,7 @@
 # Server protocol and socket handling. Allows for multiple clients
 # with unique games to all play at once using selectors module and creating
 # a new ServerGame instance.
-#
+# Achieved using selectors and non-blocking sockets
 #
 
 import socket
@@ -31,6 +31,7 @@ EOM = b'\x0A'
 
 
 def accept_wrapper(key, mask):
+    # function for accepting all connections from hte clients
     sock = key.fileobj
     conn, addr = sock.accept()  # Should be ready
     print('accepted', conn, 'from', addr, flush=True)
@@ -41,10 +42,13 @@ def accept_wrapper(key, mask):
     crypto[conn] = ServerCrypto()
 
 def service_connection(key, mask):
+    # function services the connections using a series of conditional statements
+    # and monitoring expected communications from the clients
     sock = key.fileobj
     out_msg = None
     if active_games[sock].hit_count==14:
         if mask & selectors.EVENT_WRITE:
+            # Encrypt using fernet prior to sending
             token = crypto[sock].encrypt_msg_fernet(str(active_games[sock].turns_taken).encode('ascii')+EOM)
             sock.sendall(token)
             print(
@@ -61,6 +65,7 @@ def service_connection(key, mask):
 
     elif active_games[sock].running:
         if mask & selectors.EVENT_READ:
+            # Encrypted message from client received
             enc_recv_data = sock.recv(2048)  # Should be ready to read
             if enc_recv_data:
                 recv_data = crypto[sock].decrypt_msg_fernet(enc_recv_data)
@@ -97,6 +102,8 @@ def service_connection(key, mask):
             messages = dec_data.split(EOM)
             if messages[0]==b'START GAME':
                 sock.sendall(crypto[sock].sign_dh_pubkey())
+                # Had to add catching of non-blocking exception to cope
+                # with the receiving of the client dh key
                 try:
                     client_dh_key = sock.recv(2048)
                 except BlockingIOError:
@@ -126,6 +133,7 @@ def service_connection(key, mask):
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+    # this block sets up the server socket and the callback for the scokets selector
     server_socket.bind((host, port))
     server_socket.setblocking(False)
     server_socket.listen()
