@@ -20,6 +20,8 @@ class BattleShips():
         ]   # list of tuples to represent the ships.
 
         alphabet = 'abcdefghijklmnopqrstuvwxyz'.upper()
+        self.num_rows = rows
+        self.num_cols = columns
         self.cols = alphabet[:columns]
         self.rows = [x for x in range(rows+1)]
         self.board = np.zeros((rows, columns))
@@ -30,7 +32,7 @@ class BattleShips():
     def print_board(self, file=sys.stdout):
         row_buf = [x for x in self.cols]
         print(' ',' '.join(row_buf), file=file, flush=True)
-        for row in np.arange(0,9,1):
+        for row in np.arange(0,self.num_rows,1):
             row_buf=[]
             for space in np.nditer(self.board[row,:]):
                 space = int(space)

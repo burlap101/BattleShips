@@ -6,8 +6,10 @@ from crypto import CryptoCommon
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes
 
+import numpy as np
 
 class ClientCrypto(CryptoCommon):
 
@@ -57,3 +59,12 @@ class ClientCrypto(CryptoCommon):
         )
         # if no exception raised then DH key is forwarded onto setup_fernet
         self.setup_fernet(server_dh_pubkey)
+
+    def decrypt_board(self, enc_board, key, iv):
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        byte_board = decryptor.update(enc_board)
+        rows = byte_board.split(b'==')
+        if rows[-1]==b'':
+            rows=rows[:-1]
+        return rows

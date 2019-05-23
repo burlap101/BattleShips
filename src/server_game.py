@@ -12,6 +12,7 @@ class ServerGame(BattleShips):
         super().__init__()
         self.initialised = False
         self.positioning = False
+        self.game_completed = False
 
     def setup_ship_placement(self):   # randomly place ships on board
         self.initialised = True
@@ -24,11 +25,11 @@ class ServerGame(BattleShips):
                 col = random.choice(np.arange(0,len(self.cols),step=1))
                 orient = random.choice(orientations)
                 try:
-                    if orient=='H' and (col+length) <= 9:
+                    if orient=='H' and (col+length) <= self.num_cols:
                         if np.sum(self.board[row,col:col+length])==0:
                             self.board[row,col:col+length]=self.ships.index((ship,length))+1
                             assigned=True
-                    elif orient=='V' and (row+length) <= 9:
+                    elif orient=='V' and (row+length) <= self.num_rows:
                         if np.sum(self.board[row:row+length,col])==0:
                             self.board[row:row+length,col]=self.ships.index((ship,length))+1
                             assigned=True
