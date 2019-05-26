@@ -1,6 +1,4 @@
-# The purpose of this file is to setup the client protocol for client cryptograpy. It works
-# a pre and post processing block attached to the original client for incoming and outgoing messages.
-# It achieves this by setting itself up as another host on the loopback network interface.
+# The purpose of this file is to setup the client protocol for client cryptograpy. 
 
 from crypto import CryptoCommon
 from cryptography.hazmat.primitives import serialization
@@ -8,6 +6,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes
+import secrets
 
 import numpy as np
 
@@ -19,6 +18,7 @@ class ClientCrypto(CryptoCommon):
         print('Generating Diffie-Hellman key pair')
         self.dh_pubkey = self.generate_dh_keypair()
         print('Crypto initialising complete')
+        self.nonces = []
 
 
     def retrieve_server_pubkey(self):
@@ -61,6 +61,8 @@ class ClientCrypto(CryptoCommon):
         self.setup_fernet(server_dh_pubkey)
 
     def decrypt_board(self, enc_board, key, iv):
+        # Method decrypts the supplied game board from server at the end of the
+        # the game
         cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
         decryptor = cipher.decryptor()
         byte_board = decryptor.update(enc_board)
@@ -68,3 +70,20 @@ class ClientCrypto(CryptoCommon):
         if rows[-1]==b'':
             rows=rows[:-1]
         return rows
+
+    def generate_nonce(self):
+        # Method generates the nonces. The nonce must be unique
+        # for each turn
+        while True:
+            nonce = b'***NONCE***' + secrets.token_bytes(8) + b'***END OF NONCE***'
+            if nonce not in self.nonces:
+                self.nonces.append(nonce)
+                self.current_nonce = nonce
+                return nonce
+
+    def validate_nonce(self, nonce):
+        # Method validates received nonce from server matches the last generated
+        if self.current_nonce == nonce:
+            return True
+        else:
+            return False

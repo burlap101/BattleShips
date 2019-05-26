@@ -13,7 +13,6 @@ from client_crypto import ClientCrypto
 from client_game import ClientGame
 import cryptography.exceptions as crypt_exc
 import game
-import secrets
 
 import numpy as np
 
@@ -30,7 +29,6 @@ class ClientBackend():
         print('here')
         self.enc_board = self.request_enc_board()
         print(self.enc_board)
-        self.state = secrets.randbits(128)
         self.game_completed = False
         if self.s:
             self.game = ClientGame()
@@ -79,15 +77,21 @@ class ClientBackend():
         # the server.
 
         if self.game.validate_coords(command.upper()):
-            token = self.crypto.encrypt_msg_fernet(command.upper().encode('ascii')+EOM)
+            nonce = self.crypto.generate_nonce()
+            message = command.upper().encode('ascii')+EOM+nonce
+            token = self.crypto.encrypt_msg_fernet(message)
             self.s.sendall(token)
             enc_response = self.s.recv(2048)
             if not enc_response:        # empty data received means server closed connection
-                print('connection closed by server', flush=True)
                 self.s.close()
-                raise OSError
+                raise OSError('Connection closed by server')
             response = self.crypto.decrypt_msg_fernet(enc_response)
-            messages = response.split(EOM)
+            nonce_idx = response.find(nonce)
+            if nonce_idx < 0:
+                self.s.close()
+                raise OSError('Invalid nonce received, closing connection.')
+            response = response.replace(nonce, b'')   # Remove the nonce
+            messages = response.split(EOM)      # Handle message normally.
             shots = []
             if len(messages)>1 and messages[-1]==b'':  # get rid of blank list item due to split op.
                 messages = messages[:-1]
@@ -135,6 +139,10 @@ class ClientBackend():
             raise OSError('There was an issue with the board sent. Shutting down.')
 
     def cheating_checks(self):
+        # Contains all cheating checks to be performed at the end of the game
+        # Thes include:
+        # 1. Board tampering by server
+        # 2. Turns mismatch between server and clients
         token = self.crypto.encrypt_msg_fernet(b'BOARD KEY'+EOM)
         self.s.sendall(token)
         enc_response = self.s.recv(2048)

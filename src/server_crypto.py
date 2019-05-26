@@ -14,6 +14,7 @@ class ServerCrypto(CryptoCommon):
         print('Generating Diffie-Hellman key pair')
         self.dh_pubkey = self.generate_dh_keypair()
         print('Crypto intialising complete')
+        self.nonces = []
 
     def retrieve_server_privkey(self):
         with open('.keys/bshipserverpriv.pem', 'rb') as kf:
@@ -76,3 +77,11 @@ class ServerCrypto(CryptoCommon):
         signature = self.sign_message(self.dh_pubkey)
 
         return self.dh_pubkey+signature
+
+    def validate_nonce(self, nonce):
+        # method checks if received nonce is unique and stores it. 
+        if nonce in self.nonces:
+            return False
+        else:
+            self.nonces.append(nonce)
+            return True

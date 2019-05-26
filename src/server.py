@@ -68,6 +68,17 @@ def service_connection(key, mask):
             enc_recv_data = sock.recv(2048)  # Should be ready to read
             if enc_recv_data:
                 recv_data = crypto[sock].decrypt_msg_fernet(enc_recv_data)
+                nonce_idx = recv_data.find(b'***NONCE***')
+                if nonce_idx > 0:
+                    nonce = recv_data[nonce_idx:recv_data.find(b'***END OF NONCE***')+len(b'***END OF NONCE***')]
+                    if crypto[sock].validate_nonce(nonce):
+                        recv_data = recv_data.replace(nonce, b'')
+                    else:
+                        del active_games[sock]
+                        sel.unregister(sock)
+                        sock.close()
+                        raise OSError('Duplicate nonce received, closing connection: {}'.format(sock))
+
                 messages = recv_data.split(EOM)
                 if messages[-1]==b'' and len(messages)>1:
                     messages = messages[:-1]
@@ -82,7 +93,7 @@ def service_connection(key, mask):
                         sock.sendall(token)
                         print("Board sent")
                     elif turn_taken:
-                        token = crypto[sock].encrypt_msg_fernet(turn_taken.encode('ascii') + EOM)
+                        token = crypto[sock].encrypt_msg_fernet(turn_taken.encode('ascii')+EOM+nonce)
                         sock.sendall(token)
                         print(
                             'Turn ',
@@ -95,11 +106,13 @@ def service_connection(key, mask):
                         )
                     else:
                         print('Invalid command received. Closing connection: ', sock, flush=True)
+                        del active_games[sock]
                         sel.unregister(sock)
                         sock.close()
 
             else:
                 print('closing connection to', sock.getpeername(), flush=True)
+                del active_games[sock]
                 sel.unregister(sock)
                 sock.close()
     elif active_games[sock].game_completed:
@@ -144,10 +157,12 @@ def service_connection(key, mask):
 
             elif recv_data:
                 print('Invalid command received. Closing connection: ', sock, flush=True)
+                del active_games[sock]
                 sel.unregister(sock)
                 sock.close()
             else:
                 print('Connection closed by client: ', sock.getpeername(), flush=True)
+                del active_games[sock]
                 sel.unregister(sock)
                 sock.close()
 

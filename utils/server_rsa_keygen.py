@@ -30,20 +30,7 @@ def gen_keys():
         )
     print('Completed Successfully')
 
-key_files = glob.glob('.keys/*')
-if '.keys/bshipserverpriv.pem' in key_files:
-    print('It appears an RSA key pair has already been created')
-    try:
-        with open(".keys/bshipserverpriv.pem", 'rb') as kf:
-            private_key = serialization.load_pem_private_key(
-                kf.read(),
-                password=None,
-                backend=default_backend()
-            )
-    except ValueError:
-        print('There is a problem with the stored private key. Delete the file "keys/bshipserverpriv.pem" and run again to generate key pair')
-
-elif os.path.exists('.keys'):
+if os.path.exists('.keys'):
     gen_keys()
 
 else:
