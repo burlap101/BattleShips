@@ -14,6 +14,7 @@ import cryptography.exceptions as crypt_exc
 import numpy as np
 from client_crypto import ClientCrypto
 from client_game import ClientGame
+from cryptography.fernet import InvalidToken
 
 EOM = b'\x0A'
 
@@ -52,7 +53,11 @@ class ClientBackend():
                     s.close()
                     return False
             else:
-                response = self.crypto.decrypt_msg_fernet(enc_response)
+                try:
+                    response = self.crypto.decrypt_msg_fernet(enc_response)
+                except InvalidToken as e:
+                    remove_all_associated_objects(sock)
+                    raise InvalidToken('Invalid Fernet token received')
                 messages = response.split(EOM)
                 if messages[-1] == b'' and len(messages) > 1:
                     messages = messages[:-1]  # last split will produce blank string need to filter out
@@ -81,7 +86,11 @@ class ClientBackend():
             if not enc_response:  # empty data received means server closed connection
                 self.s.close()
                 raise OSError('Connection closed by server')
-            response = self.crypto.decrypt_msg_fernet(enc_response)
+            try:
+                response = self.crypto.decrypt_msg_fernet(enc_response)
+            except InvalidToken as e:
+                remove_all_associated_objects(sock)
+                raise InvalidToken('Invalid Fernet token received')
             nonce_idx = response.find(nonce)
             if nonce_idx < 0:
                 self.s.close()
@@ -101,7 +110,11 @@ class ClientBackend():
                 elif self.game.hit_count == 14:
                     if msg == 'HIT':
                         enc_response = self.s.recv(2048)
-                        response = self.crypto.decrypt_msg_fernet(enc_response)
+                        try:
+                            response = self.crypto.decrypt_msg_fernet(enc_response)
+                        except InvalidToken as e:
+                            remove_all_associated_objects(sock)
+                            raise InvalidToken('Invalid Fernet token received')
                         stt = response.split(EOM)[-2]  # the server should have sent the amount of turns taken
                         shots.append(msg)
                         self.cheating_checks(int(stt))
@@ -122,7 +135,11 @@ class ClientBackend():
         self.s.sendall(token)
         enc_response = self.s.recv(2048)
         # print(enc_response)
-        response = self.crypto.decrypt_msg_fernet(enc_response)
+        try:
+            response = self.crypto.decrypt_msg_fernet(enc_response)
+        except InvalidToken as e:
+            remove_all_associated_objects(sock)
+            raise InvalidToken('Invalid Fernet token received')
         if response.startswith(b'===START OF BOARD==='):
             enc_board = response.split(b'===END OF BOARD===')[0]
             return enc_board.replace(b'===START OF BOARD===', b'')

@@ -26,12 +26,10 @@ if [ $packaged -eq 0 ]; then
   cp src/client.py ClientPackage/src
   cp src/crypto.py ClientPackage/src
   cp README.md ClientPackage/
-  cd ClientPackage/
-  zip -r client.zip .
-  cd ..
+  tar -czvf client.tar.gz ClientPackage/
   rm -r ClientPackage/
   echo
-  echo Client package client.zip created. Extract on client host and follow instructions within README.md to begin game with the corresponding server.
+  echo Client package client.tar.gz created. Extract on client host and follow instructions within README.md to begin game with the corresponding server.
 
 else
   echo It appears ClientPackage has already been created. Delete this directory if recompiling.

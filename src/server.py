@@ -12,10 +12,13 @@ import sys
 
 from server_crypto import ServerCrypto
 from server_game import ServerGame
+from cryptography.fernet import InvalidToken
 
 sel = selectors.DefaultSelector()
 # an empty dictionary to hold all game instances
 active_games = {}
+# an empty address to hold connection details currently registered.
+accepted_addresses = {}
 
 # an empty dictionary to manage all per connection specific encryption
 crypto = {}
@@ -23,6 +26,7 @@ crypto = {}
 # an empty dictionary to hold the key and iv for decryption of the board by the client after completion
 board_key_iv = {}
 host = ''
+
 # get the port number from command line if supplied
 if len(sys.argv) > 1:
     port = int(sys.argv[1])
@@ -34,17 +38,29 @@ else:
 
 EOM = b'\x0A'
 
+def remove_all_associated_objects(sock):
+    del active_games[sock]
+    del crypto[sock]
+    del accepted_addresses[sock.getpeername()[0]]
+    sel.unregister(sock)
+    sock.close()
+
 
 def accept_wrapper(key, mask):
     # function for accepting all connections from hte clients
     sock = key.fileobj
     conn, addr = sock.accept()  # Should be ready
-    print('accepted', conn, 'from', addr, flush=True)
-    conn.setblocking(False)
-    events = selectors.EVENT_READ | selectors.EVENT_WRITE
-    sel.register(conn, events, service_connection)
-    active_games[conn] = ServerGame()  # create a unique game per connection
-    crypto[conn] = ServerCrypto()
+    if conn.getpeername()[0] in accepted_addresses.keys():
+        conn.close()    # if there is already  connection from this IP address then close the connection
+    else:
+        accepted_addresses[conn.getpeername()[0]] = conn
+        print('accepted', conn, 'from', addr, flush=True)
+        conn.setblocking(False)
+        events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        sel.register(conn, events, service_connection)
+        print(sel.get_map())
+        active_games[conn] = ServerGame()  # create a unique game per connection
+        crypto[conn] = ServerCrypto()
 
 
 def service_connection(key, mask):
@@ -73,16 +89,18 @@ def service_connection(key, mask):
             # Encrypted message from client received
             enc_recv_data = sock.recv(2048)  # Should be ready to read
             if enc_recv_data:
-                recv_data = crypto[sock].decrypt_msg_fernet(enc_recv_data)
+                try:
+                    recv_data = crypto[sock].decrypt_msg_fernet(enc_recv_data)
+                except InvalidToken as e:
+                    remove_all_associated_objects(sock)
+                    raise InvalidToken('Invalid Fernet token received')
                 nonce_idx = recv_data.find(b'***NONCE***')
                 if nonce_idx > 0:
                     nonce = recv_data[nonce_idx:recv_data.find(b'***END OF NONCE***') + len(b'***END OF NONCE***')]
                     if crypto[sock].validate_nonce(nonce):
                         recv_data = recv_data.replace(nonce, b'')
                     else:
-                        del active_games[sock]
-                        sel.unregister(sock)
-                        sock.close()
+                        remove_all_associated_objects(sock)
                         raise OSError('Duplicate nonce received, closing connection: {}'.format(sock))
 
                 messages = recv_data.split(EOM)
@@ -112,28 +130,26 @@ def service_connection(key, mask):
                         )
                     else:
                         print('Invalid command received. Closing connection: ', sock, flush=True)
-                        del active_games[sock]
-                        sel.unregister(sock)
-                        sock.close()
+                        remove_all_associated_objects(sock)
 
             else:
                 print('closing connection to', sock.getpeername(), flush=True)
-                del active_games[sock]
-                sel.unregister(sock)
-                sock.close()
+                remove_all_associated_objects(sock)
     elif active_games[sock].game_completed:
         if mask & selectors.EVENT_READ:
             recv_data = sock.recv(1024)
-            dec_data = crypto[sock].decrypt_msg_fernet(recv_data)
+            try:
+                dec_data = crypto[sock].decrypt_msg_fernet(recv_data)
+            except InvalidToken as e:
+                remove_all_associated_objects(sock)
+                raise InvalidToken('Invalid Fernet token received')
             messages = dec_data.split(EOM)
             if messages[0] == b'BOARD KEY':
                 token = crypto[sock].encrypt_msg_fernet(
                     board_key_iv[sock][0] + b'===END OF KEY===' + board_key_iv[sock][1] + b'===END OF IV===')
                 sock.sendall(token)
                 # print('Board key token: ',token)
-                del active_games[sock]
-                sel.unregister(sock)
-                sock.close()
+                remove_all_associated_objects(sock)
     else:
         if mask & selectors.EVENT_READ:
             recv_data = sock.recv(2048)
@@ -164,21 +180,17 @@ def service_connection(key, mask):
 
             elif recv_data:
                 print('Invalid command received. Closing connection: ', sock, flush=True)
-                del active_games[sock]
-                sel.unregister(sock)
-                sock.close()
+                remove_all_associated_objects(sock)
             else:
                 print('Connection closed by client: ', sock.getpeername(), flush=True)
-                del active_games[sock]
-                sel.unregister(sock)
-                sock.close()
+                remove_all_associated_objects(sock)
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
     # this block sets up the server socket and the callback for the sockets selector
     server_socket.bind((host, port))
     server_socket.setblocking(False)
-    server_socket.listen()
+    server_socket.listen(10)
     events = selectors.EVENT_READ
     sel.register(server_socket, events, accept_wrapper)
     while True:
