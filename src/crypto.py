@@ -1,11 +1,10 @@
+import base64
+
+from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.fernet import Fernet
-import base64
 
 
 class CryptoCommon():
@@ -28,13 +27,19 @@ class CryptoCommon():
         )
 
     def setup_fernet(self, peer_dh_pubkey):
+        # Method sets up the Fernet algorithm to be used from the Diffie Hellman key.
+        # The peer's DH public key is taken then expanded using HKDF, then encoded
+        # into a 256-bit long "key" to be used for the fernet, and will match that of
+        # of the peer's. The fernet 256 bit "key" is comprised of really a 128-bit key
+        # to be used as part of the AES using CBC algorithm it utilises, and the other 128-bits
+        # is used as the initialising vector for the CBC.
         shared_key = self.dh_private_key.exchange(
             serialization.load_pem_public_key(
                 peer_dh_pubkey,
                 backend=default_backend()
             )
         )
-        print('Shared key: ', shared_key)
+        # print('Shared key: ', shared_key)
         derived_key = HKDF(
             algorithm=hashes.SHA256(),
             length=32,
@@ -42,13 +47,16 @@ class CryptoCommon():
             info=b'handshake data',
             backend=default_backend()
         ).derive(shared_key)
-        print('Derived key: ', derived_key)
+        # print('Derived key: ', derived_key)
         fern_key = base64.urlsafe_b64encode(derived_key)
-        print('Fernet key: ',fern_key)
+        # print('Fernet key: ', fern_key)
         self.fern = Fernet(fern_key)
 
     def encrypt_msg_fernet(self, message):
+        # Encrypts the provided message using the Fernet algorithm
         return self.fern.encrypt(message)
 
     def decrypt_msg_fernet(self, token):
-        return self.fern.decrypt(token, ttl=self.TTL)     # TODO: insert ttl arg
+        # Decrypts the provided token using the Fernet algorithm
+        # Will raise an exception if the token has expired (older than self.TTL).
+        return self.fern.decrypt(token, ttl=self.TTL)

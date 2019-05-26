@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# if any arguments supplied will attempt to conenct using them otherwise defaults are used from within the .py files.
+# if any arguments supplied will attempt to connect using them otherwise defaults are used from within the .py files.
 
 if [ $# -gt 0 ]; then
   if [ $1 = "-h" ]; then

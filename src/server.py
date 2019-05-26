@@ -3,20 +3,25 @@
 # Server protocol and socket handling. Allows for multiple clients
 # with unique games to all play at once using selectors module and creating
 # a new ServerGame instance.
-# Achieved using selectors and non-blocking sockets
-#
+# Achieved using selectors and non-blocking sockets (server doesn't 'hang' to wait for a response
+# from the client instead polls all open sockets).
 
-import socket
-from server_game import ServerGame
-from server_crypto import ServerCrypto
 import selectors
+import socket
 import sys
 
-sel = selectors.DefaultSelector()
-active_games = {}      # an empty dictionary to hold all game instances
-crypto = {}         # an empty dictionary to manage all per connection specific encryption
-board_key_iv = {}       # an empty dictionary to hold the key and iv for decryption of the board by the client after completion
+from server_crypto import ServerCrypto
+from server_game import ServerGame
 
+sel = selectors.DefaultSelector()
+# an empty dictionary to hold all game instances
+active_games = {}
+
+# an empty dictionary to manage all per connection specific encryption
+crypto = {}
+
+# an empty dictionary to hold the key and iv for decryption of the board by the client after completion
+board_key_iv = {}
 host = ''
 # get the port number from command line if supplied
 if len(sys.argv) > 1:
@@ -38,18 +43,19 @@ def accept_wrapper(key, mask):
     conn.setblocking(False)
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, service_connection)
-    active_games[conn] = ServerGame()   # create a unique game per connection
+    active_games[conn] = ServerGame()  # create a unique game per connection
     crypto[conn] = ServerCrypto()
+
 
 def service_connection(key, mask):
     # function services the connections using a series of conditional statements
     # and monitoring expected communications from the clients
     sock = key.fileobj
     out_msg = None
-    if active_games[sock].hit_count==14 and active_games[sock].game_completed==False:
+    if active_games[sock].hit_count == 14 and active_games[sock].game_completed == False:
         if mask & selectors.EVENT_WRITE:
             # Encrypt using fernet prior to sending
-            token = crypto[sock].encrypt_msg_fernet(str(active_games[sock].turns_taken).encode('ascii')+EOM)
+            token = crypto[sock].encrypt_msg_fernet(str(active_games[sock].turns_taken).encode('ascii') + EOM)
             sock.sendall(token)
             print(
                 "Game with ",
@@ -70,7 +76,7 @@ def service_connection(key, mask):
                 recv_data = crypto[sock].decrypt_msg_fernet(enc_recv_data)
                 nonce_idx = recv_data.find(b'***NONCE***')
                 if nonce_idx > 0:
-                    nonce = recv_data[nonce_idx:recv_data.find(b'***END OF NONCE***')+len(b'***END OF NONCE***')]
+                    nonce = recv_data[nonce_idx:recv_data.find(b'***END OF NONCE***') + len(b'***END OF NONCE***')]
                     if crypto[sock].validate_nonce(nonce):
                         recv_data = recv_data.replace(nonce, b'')
                     else:
@@ -80,11 +86,11 @@ def service_connection(key, mask):
                         raise OSError('Duplicate nonce received, closing connection: {}'.format(sock))
 
                 messages = recv_data.split(EOM)
-                if messages[-1]==b'' and len(messages)>1:
+                if messages[-1] == b'' and len(messages) > 1:
                     messages = messages[:-1]
                 for message in messages:
                     turn_taken = active_games[sock].shot_fired(message.decode('ascii'))
-                    if message==b'BOARD':
+                    if message == b'BOARD':
                         # Next we encrypt the board using AES and send the encrypted baord to the client for safe
                         # keeping until the end of game where they will receive the key to check for cheating
                         enc_board, board_key, board_iv = crypto[sock].encrypt_board(active_games[sock].board)
@@ -93,7 +99,7 @@ def service_connection(key, mask):
                         sock.sendall(token)
                         print("Board sent")
                     elif turn_taken:
-                        token = crypto[sock].encrypt_msg_fernet(turn_taken.encode('ascii')+EOM+nonce)
+                        token = crypto[sock].encrypt_msg_fernet(turn_taken.encode('ascii') + EOM + nonce)
                         sock.sendall(token)
                         print(
                             'Turn ',
@@ -120,10 +126,11 @@ def service_connection(key, mask):
             recv_data = sock.recv(1024)
             dec_data = crypto[sock].decrypt_msg_fernet(recv_data)
             messages = dec_data.split(EOM)
-            if messages[0]==b'BOARD KEY':
-                token=crypto[sock].encrypt_msg_fernet(board_key_iv[sock][0]+b'===END OF KEY==='+board_key_iv[sock][1]+b'===END OF IV===')
+            if messages[0] == b'BOARD KEY':
+                token = crypto[sock].encrypt_msg_fernet(
+                    board_key_iv[sock][0] + b'===END OF KEY===' + board_key_iv[sock][1] + b'===END OF IV===')
                 sock.sendall(token)
-                # print('BOard key token: ',token)
+                # print('Board key token: ',token)
                 del active_games[sock]
                 sel.unregister(sock)
                 sock.close()
@@ -132,8 +139,8 @@ def service_connection(key, mask):
             recv_data = sock.recv(2048)
             dec_data = crypto[sock].decrypt_msg_rsa(recv_data)
             messages = dec_data.split(EOM)
-            print(messages)
-            if messages[0]==b'START GAME':
+            # print(messages)
+            if messages[0] == b'START GAME':
                 signeddh = crypto[sock].sign_dh_pubkey()
                 sock.sendall(signeddh)
                 # print('DH Key Sent: ',signeddh)
@@ -145,13 +152,13 @@ def service_connection(key, mask):
                     sock.setblocking(True)
                     client_dh_key = sock.recv(2048)
                     sock.setblocking(False)
-                if client_dh_key.find(b'-----END PUBLIC KEY-----\n')<0:
+                if client_dh_key.find(b'-----END PUBLIC KEY-----\n') < 0:
                     raise ValueError('Received Diffie-Hellman key is invalid')
                 crypto[sock].setup_fernet(client_dh_key)
-                token = crypto[sock].encrypt_msg_fernet(b'POSITIONING SHIPS'+EOM)
+                token = crypto[sock].encrypt_msg_fernet(b'POSITIONING SHIPS' + EOM)
                 sock.sendall(token)
                 active_games[sock].setup_ship_placement()
-                token = crypto[sock].encrypt_msg_fernet(b'SHIPS IN POSITION'+EOM)
+                token = crypto[sock].encrypt_msg_fernet(b'SHIPS IN POSITION' + EOM)
                 sock.sendall(token)
                 active_games[sock].print_board()
 
@@ -168,7 +175,7 @@ def service_connection(key, mask):
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-    # this block sets up the server socket and the callback for the scokets selector
+    # this block sets up the server socket and the callback for the sockets selector
     server_socket.bind((host, port))
     server_socket.setblocking(False)
     server_socket.listen()

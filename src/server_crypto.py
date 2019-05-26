@@ -1,22 +1,27 @@
+# This contains all methods required to perform cryptographic operations for the server.
+
+import os
+
+import numpy as np
 from crypto import CryptoCommon
-from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import os
-import numpy as np
 
 
 class ServerCrypto(CryptoCommon):
     def __init__(self):
+        # retrieve rsa key stored in file, generate Diffie Hellman key pair and initiate the received nonces list
         print('Retrieving server RSA private key')
         self.rsa_privkey = self.retrieve_server_privkey()
         print('Generating Diffie-Hellman key pair')
         self.dh_pubkey = self.generate_dh_keypair()
         print('Crypto intialising complete')
-        self.nonces = []
+        self.nonces = [b'\x00']
 
     def retrieve_server_privkey(self):
+        # Retrieves the stored privte RSA key for the server
         with open('.keys/bshipserverpriv.pem', 'rb') as kf:
             rsa_privkey = serialization.load_pem_private_key(
                 kf.read(),
@@ -26,6 +31,7 @@ class ServerCrypto(CryptoCommon):
             return rsa_privkey
 
     def decrypt_msg_rsa(self, ciphertext):
+        # Decryption of messages for the starting of the game from the client. Uses padding and SHA-256 hash codes.
         message = self.rsa_privkey.decrypt(
             ciphertext,
             padding.OAEP(
@@ -41,25 +47,25 @@ class ServerCrypto(CryptoCommon):
         # AES. It returns the encrypted board as well as the init vector
         # and key.
         byte_board = b''
-        for row in np.arange(0,board.shape[0],1):
-            row_buf=[]
-            for space in np.nditer(board[row,:]):
+        for row in np.arange(0, board.shape[0], 1):
+            row_buf = []
+            for space in np.nditer(board[row, :]):
                 space = int(space)
                 row_buf.append(space.to_bytes(1, byteorder='big', signed=True))
-            byte_board += b''.join(row_buf) + b'=='    # append == to the end to show a new row when decrypting
+            byte_board += b''.join(row_buf) + b'=='  # append == to the end to show a new row when decrypting
 
-        print(byte_board)
+        # print(byte_board)
         key = os.urandom(32)
         iv = os.urandom(16)
         cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         ct = encryptor.update(byte_board)
 
-        return b'===START OF BOARD==='+ ct + b"===END OF BOARD===", key, iv
+        return b'===START OF BOARD===' + ct + b"===END OF BOARD===", key, iv
 
     def sign_message(self, message):
-        # Method creates a unique signature from the RSA private key for verification
-        # by client.
+        # Method creates a unique signature from the RSA private key and the message to be sent as input
+        # for verification by client
         signature = self.rsa_privkey.sign(
             message,
             padding.PSS(
@@ -76,11 +82,11 @@ class ServerCrypto(CryptoCommon):
         # public key and attaches it to the key for sending to the client
         signature = self.sign_message(self.dh_pubkey)
 
-        return self.dh_pubkey+signature
+        return self.dh_pubkey + signature
 
     def validate_nonce(self, nonce):
         # method checks if received nonce is unique and stores it. 
-        if nonce in self.nonces:
+        if (nonce in self.nonces) or (nonce < max(self.nonces)):
             return False
         else:
             self.nonces.append(nonce)
