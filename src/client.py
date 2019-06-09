@@ -19,12 +19,22 @@ EOM = b'\x0A'
 
 class ClientBackend():
 
-    def __init__(self, host='127.0.0.1', port=23456):
-        self.crypto = ClientCrypto()  # handles all the encryption and decryption
+    def __init__(self, host='127.0.0.1', port=23456, s=None):
+        # handles all the encryption and decryption. Host and port is address used for storage of public key for who you want to connect with
         self.dh_key_verified = False
-        self.host = host
-        self.port = port
+        if s:
+            self.s = s
+            self.host = s.getpeername()[0]
+            self.port = s.getpeername()[1]
+        else:
+            self.host = host
+            self.port = port
+        self.crypto = ClientCrypto(self.host, self.port)
+        self.crypto.initiate_rsa()
         self.s = self.socket_setup()
+
+
+        print("Socket details: ", self.s)
         self.enc_board = self.request_enc_board()
         self.game_completed = False
         if self.s:
@@ -32,15 +42,20 @@ class ClientBackend():
         else:
             raise OSError('Something went wrong with establishing the game.')
 
+
     def socket_setup(self):
         # setup the TCP socket for communications
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Initialising TCP socket
-        s.connect((self.host, self.port))
-        ciphertext = self.crypto.encrypt_msg_rsa(b'START GAME' + EOM)
+        if not self.s:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Initialising TCP socket
+            s.connect((self.host, self.port))
+        else:
+            s = self.s
+        ciphertext = self.crypto.encrypt_msg_rsa(b'START_GAME' + EOM)
         s.sendall(ciphertext)
         initialising = True
         while initialising:
             enc_response = s.recv(2048)  # retrieve characters from buffer
+            print(enc_response)
             response = self.crypto.decrypt_msg_rsa(enc_response)
             messages = response.split(EOM)
             if messages[-1] == b'' and len(messages) > 1:
@@ -126,8 +141,7 @@ class ClientBackend():
         # 2. Turns mismatch between server and clients
         token = self.crypto.encrypt_msg_rsa(b'BOARD KEY' + EOM)
         self.s.sendall(token)
-        enc_response = self.s.recv(2048)
-        response = self.crypto.decrypt_msg_rsa(enc_response)
+        response = self.s.recv(2048)
         splitted = response.split(b'===END OF KEY===')
         board_key = splitted[0]
         board_iv = splitted[1].split(b'===END OF IV===')[0]

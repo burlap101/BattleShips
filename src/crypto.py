@@ -1,4 +1,4 @@
-import base64
+import json
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -10,20 +10,31 @@ class CryptoCommon():
     # encrypted communications using the Fernet (Encrypt-then-MAC) approach.
     TTL = 600  # 10 minutes after creation, a Fernet token expires.
 
-    def __init__(self):
-        print('Retrieving peer RSA public key')
-        self.peer_rsa_pubkey = self.retrieve_peer_pubkey()
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
         print('Retrieving server RSA private key')
         self.rsa_privkey = self.retrieve_privkey()
         print('Completed')
+        self.peer_rsa_pubkey = None
 
-    def retrieve_peer_pubkey(self):
-        with open('.keys/bshipserverpub.pem', 'rb') as kf:
-            peer_rsa_pubkey = serialization.load_pem_public_key(
-                kf.read(),
+    def initiate_rsa(self):
+        print("Initiating RSA...")
+        self.peer_rsa_pubkey = self.retrieve_peer_pubkey(self.host, self.port)
+        print("Done", self.peer_rsa_pubkey)
+
+    def retrieve_peer_pubkey(self, host, port):
+        with open('.keys/keylist.dat', 'r') as f:
+            entries = json.load(f)
+        print("searching for: {}:{}".format(host, port))
+        for entry in entries:
+            print(entry['name'])
+            if entry['name'] == "{}:{}".format(host, port):
+                peer_rsa_pubkey = serialization.load_pem_public_key(
+                entry['key'].encode('ascii'),
                 backend=default_backend()
-            )
-            return peer_rsa_pubkey
+                )
+                return peer_rsa_pubkey
 
     def retrieve_privkey(self):
         # Retrieves the stored private RSA key for the server
@@ -57,5 +68,6 @@ class CryptoCommon():
             )
         )
         return ciphertext
+
 
 

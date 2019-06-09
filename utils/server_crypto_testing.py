@@ -16,7 +16,7 @@ print(scdh)
 
 cc = ClientCrypto()
 cc.verify_server_dh_pubkey(signeddh)
-message=b'START GAME'
+message=b'START_GAME'
 encm = cc.encrypt_msg_rsa(message)
 print(encm)
 decm = sc.decrypt_msg_rsa(encm)

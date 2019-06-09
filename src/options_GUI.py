@@ -10,13 +10,13 @@ from tkinter import messagebox
 from tkinter import ttk
 from register_with_peer import RegisterPeer as rp
 from GUI import Application as GameGUI
+import socket
 
 class Application(tk.Frame):
     # GUI for the client using Tk
-    def __init__(self, port, master=None):
+    def __init__(self, master=None):
         super().__init__(master)
         self.master = master
-        self.port = port
         self.pack()
         self.create_widgets()
 
@@ -50,37 +50,37 @@ class Application(tk.Frame):
         host=self.address_entry.get()
         try:
             port = int(self.port_entry.get())
-            if not rp.register(host, port):
-                print("THERE WAS AN ISSUE")
-            self.reg_peer_top.grab_release()
-            self.reg_peer_top.destroy()
+            print(int(port))
         except ValueError as e:
             tk.messagebox.showerror('Invalid Value', 'Port number needs to be an integer')
 
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Initialising TCP socket
+        s.connect((host, port))
+        if not rp.register(host, port, s):
+            tk.messagebox.showerror('Processing error', 'There was a problem processing the given peer')
+        s.close()
+        self.reg_peer_top.grab_release()
+        self.reg_peer_top.destroy()
+
     def start_game(self):
+        print("refreshing peers...")
+        s = rp.refresh_peers()
         game_top = tk.Toplevel()
+        game_top.grab_set()
         game_top.title("BattleShips!!!")
         imgicon = tk.PhotoImage(file='docs/battleship.png')
         game_top.tk.call('wm', 'iconphoto', game_top._w, imgicon)
         self.play_button.config(state='disabled')
-        GameGUI(self.port, game_top)
+        GameGUI(master=game_top, s=s)
         self.play_button.config(state='normal')     # TODO: stop user from making multiple games
 
     def exit(self):
         if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
             self.master.destroy()
 
-if len(sys.argv) > 1:
-    port = int(sys.argv[1])
-    if port <= 1024 or port > 65535:
-        print("Port Number outside of useable range")
-        raise ValueError
-else:
-    port = 23456
-
 root = tk.Tk()
 root.title('Node Options')
 imgicon = tk.PhotoImage(file='docs/battleship.png')
 root.call('wm', 'iconphoto', root._w, imgicon)
-app = Application(port=port, master=root)
+app = Application(master=root)
 app.mainloop()

@@ -14,8 +14,11 @@ from client import ClientBackend
 
 class Application(tk.Frame):
     # GUI for the client using Tk
-    def __init__(self, port, master=None):
-        self.backend = ClientBackend(port=port)
+    def __init__(self, port=23456, host='127.0.0.1', master=None, s=None):
+        if s:
+            self.backend = ClientBackend(s=s)
+        else:
+            self.backend = ClientBackend(port=port, host=host)
         super().__init__(master, bg='SlateGray3')
         self.master = master
         self.pack()
@@ -111,7 +114,7 @@ class Application(tk.Frame):
                         cheating_message = self.backend.cheating_message
                         self.response_label.config(text="Server Last Response: " + str(moves))
                         messagebox.showinfo('Congratulations!', 'Game completed in ' + str(
-                            moves) + ' moves\nCheating checks result: ' + cheating_message)
+                            moves) + ' moves\nCheating checks result: ' + cheating_message, parent=self.master)
                         self.backend.close_connection()
                         self.master.destroy()
         except OSError:
