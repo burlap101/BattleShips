@@ -7,15 +7,12 @@ packaged=`ls -a -p | grep ClientPackage/ | wc -w`
 
 if [ $packaged -eq 0 ]; then
   $wpython utils/server_rsa_keygen.py
-  echo Generating Diffie-Hellman parameters
-  $wpython utils/generate_dh_params.py
   echo Completed
   mkdir ClientPackage
   mkdir ClientPackage/.keys/
   mkdir ClientPackage/src/
   mkdir ClientPackage/docs/
   cp .keys/bshipserverpub.pem ClientPackage/.keys/
-  cp .keys/dh_params.pem ClientPackage/.keys/
   cp startClient.sh ClientPackage/
   cp src/client_game.py ClientPackage/src/
   cp docs/client_readme.txt ClientPackage/docs/

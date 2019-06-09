@@ -10,11 +10,9 @@
 
 import socket
 
-import cryptography.exceptions as crypt_exc
 import numpy as np
 from client_crypto import ClientCrypto
 from client_game import ClientGame
-from cryptography.fernet import InvalidToken
 
 EOM = b'\x0A'
 
@@ -43,34 +41,20 @@ class ClientBackend():
         initialising = True
         while initialising:
             enc_response = s.recv(2048)  # retrieve characters from buffer
-            if not self.dh_key_verified:
-                try:
-                    self.crypto.verify_server_dh_pubkey(enc_response)
-                    s.sendall(self.crypto.dh_pubkey)
-                    self.dh_key_verified = True
-                except crypt_exc.InvalidSignature:
-                    print('An invalid signature was detected from the server. Shutting down.', flush=True)
+            response = self.crypto.decrypt_msg_rsa(enc_response)
+            messages = response.split(EOM)
+            if messages[-1] == b'' and len(messages) > 1:
+                messages = messages[:-1]  # last split will produce blank string need to filter out
+            for message in messages:
+                print(message)
+                if message == b'SHIPS IN POSITION':
+                    initialising = False
+                elif message == b'POSITIONING SHIPS':
+                    pass
+                else:
+                    print('There was an issue with the response from server. Shutting down.', flush=True)
                     s.close()
                     return False
-            else:
-                try:
-                    response = self.crypto.decrypt_msg_fernet(enc_response)
-                except InvalidToken as e:
-                    remove_all_associated_objects(sock)
-                    raise InvalidToken('Invalid Fernet token received')
-                messages = response.split(EOM)
-                if messages[-1] == b'' and len(messages) > 1:
-                    messages = messages[:-1]  # last split will produce blank string need to filter out
-                for message in messages:
-                    print(message)
-                    if message == b'SHIPS IN POSITION':
-                        initialising = False
-                    elif message == b'POSITIONING SHIPS':
-                        pass
-                    else:
-                        print('There was an issue with the response from server. Shutting down.', flush=True)
-                        s.close()
-                        return False
         return s
 
     def take_shot(self, command):
@@ -80,17 +64,13 @@ class ClientBackend():
         if self.game.validate_coords(command.upper()):
             nonce = self.crypto.generate_nonce()
             message = command.upper().encode('ascii') + EOM + nonce
-            token = self.crypto.encrypt_msg_fernet(message)
+            token = self.crypto.encrypt_msg_rsa(message)
             self.s.sendall(token)
             enc_response = self.s.recv(2048)
             if not enc_response:  # empty data received means server closed connection
                 self.s.close()
                 raise OSError('Connection closed by server')
-            try:
-                response = self.crypto.decrypt_msg_fernet(enc_response)
-            except InvalidToken as e:
-                remove_all_associated_objects(sock)
-                raise InvalidToken('Invalid Fernet token received')
+            response = self.crypto.decrypt_msg_rsa(enc_response)
             nonce_idx = response.find(nonce)
             if nonce_idx < 0:
                 self.s.close()
@@ -110,11 +90,7 @@ class ClientBackend():
                 elif self.game.hit_count == 14:
                     if msg == 'HIT':
                         enc_response = self.s.recv(2048)
-                        try:
-                            response = self.crypto.decrypt_msg_fernet(enc_response)
-                        except InvalidToken as e:
-                            remove_all_associated_objects(sock)
-                            raise InvalidToken('Invalid Fernet token received')
+                        response = self.crypto.decrypt_msg_rsa(enc_response)
                         stt = response.split(EOM)[-2]  # the server should have sent the amount of turns taken
                         shots.append(msg)
                         self.cheating_checks(int(stt))
@@ -131,15 +107,11 @@ class ClientBackend():
             return False
 
     def request_enc_board(self):
-        token = self.crypto.encrypt_msg_fernet(b'BOARD' + EOM)
+        token = self.crypto.encrypt_msg_rsa(b'BOARD' + EOM)
         self.s.sendall(token)
         enc_response = self.s.recv(2048)
         # print(enc_response)
-        try:
-            response = self.crypto.decrypt_msg_fernet(enc_response)
-        except InvalidToken as e:
-            remove_all_associated_objects(sock)
-            raise InvalidToken('Invalid Fernet token received')
+        response = self.crypto.decrypt_msg_rsa(enc_response)
         if response.startswith(b'===START OF BOARD==='):
             enc_board = response.split(b'===END OF BOARD===')[0]
             return enc_board.replace(b'===START OF BOARD===', b'')
@@ -152,10 +124,10 @@ class ClientBackend():
         # These include:
         # 1. Board tampering by server
         # 2. Turns mismatch between server and clients
-        token = self.crypto.encrypt_msg_fernet(b'BOARD KEY' + EOM)
+        token = self.crypto.encrypt_msg_rsa(b'BOARD KEY' + EOM)
         self.s.sendall(token)
         enc_response = self.s.recv(2048)
-        response = self.crypto.decrypt_msg_fernet(enc_response)
+        response = self.crypto.decrypt_msg_rsa(enc_response)
         splitted = response.split(b'===END OF KEY===')
         board_key = splitted[0]
         board_iv = splitted[1].split(b'===END OF IV===')[0]
@@ -195,3 +167,6 @@ class ClientBackend():
 
     def validate_coords_wrapper(self, coords):
         return self.game.validate_coords(coords)
+
+    def close_connection(self):
+        self.s.close()

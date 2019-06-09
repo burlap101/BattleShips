@@ -1,10 +1,8 @@
 import base64
 
-from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 
 class CryptoCommon():
@@ -12,51 +10,52 @@ class CryptoCommon():
     # encrypted communications using the Fernet (Encrypt-then-MAC) approach.
     TTL = 600  # 10 minutes after creation, a Fernet token expires.
 
-    def generate_dh_keypair(self):
-        # generates diffie hellman key pair for key exchange which will be used for the AES key during the game
-        with open('.keys/dh_params.pem', 'rb') as param_file:
-            parameters = serialization.load_pem_parameters(
-                param_file.read(),
+    def __init__(self):
+        print('Retrieving peer RSA public key')
+        self.peer_rsa_pubkey = self.retrieve_peer_pubkey()
+        print('Retrieving server RSA private key')
+        self.rsa_privkey = self.retrieve_privkey()
+        print('Completed')
+
+    def retrieve_peer_pubkey(self):
+        with open('.keys/bshipserverpub.pem', 'rb') as kf:
+            peer_rsa_pubkey = serialization.load_pem_public_key(
+                kf.read(),
                 backend=default_backend()
             )
+            return peer_rsa_pubkey
 
-        self.dh_private_key = parameters.generate_private_key()
-        return self.dh_private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-
-    def setup_fernet(self, peer_dh_pubkey):
-        # Method sets up the Fernet algorithm to be used from the Diffie Hellman key.
-        # The peer's DH public key is taken then expanded using HKDF, then encoded
-        # into a 256-bit long "key" to be used for the fernet, and will match that of
-        # of the peer's. The fernet 256 bit "key" is comprised of really a 128-bit key
-        # to be used as part of the AES using CBC algorithm it utilises, and the other 128-bits
-        # is used as the initialising vector for the CBC.
-        shared_key = self.dh_private_key.exchange(
-            serialization.load_pem_public_key(
-                peer_dh_pubkey,
+    def retrieve_privkey(self):
+        # Retrieves the stored private RSA key for the server
+        with open('.keys/bshipserverpriv.pem', 'rb') as kf:
+            rsa_privkey = serialization.load_pem_private_key(
+                kf.read(),
+                password=None,
                 backend=default_backend()
             )
+            return rsa_privkey
+
+    def decrypt_msg_rsa(self, ciphertext):
+        # Decryption of messages for the starting of the game from the client. Uses padding and SHA-256 hash codes.
+        message = self.rsa_privkey.decrypt(
+            ciphertext,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-        # print('Shared key: ', shared_key)
-        derived_key = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=None,
-            info=b'handshake data',
-            backend=default_backend()
-        ).derive(shared_key)
-        # print('Derived key: ', derived_key)
-        fern_key = base64.urlsafe_b64encode(derived_key)
-        # print('Fernet key: ', fern_key)
-        self.fern = Fernet(fern_key)
+        return message
 
-    def encrypt_msg_fernet(self, message):
-        # Encrypts the provided message using the Fernet algorithm
-        return self.fern.encrypt(message)
+    def encrypt_msg_rsa(self, message):
+        ciphertext = self.peer_rsa_pubkey.encrypt(
+            message,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return ciphertext
 
-    def decrypt_msg_fernet(self, token):
-        # Decrypts the provided token using the Fernet algorithm
-        # Will raise an exception if the token has expired (older than self.TTL).
-        return self.fern.decrypt(token, ttl=self.TTL)
+

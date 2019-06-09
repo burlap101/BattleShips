@@ -112,6 +112,7 @@ class Application(tk.Frame):
                         self.response_label.config(text="Server Last Response: " + str(moves))
                         messagebox.showinfo('Congratulations!', 'Game completed in ' + str(
                             moves) + ' moves\nCheating checks result: ' + cheating_message)
+                        self.backend.close_connection()
                         self.master.destroy()
         except OSError:
             messagebox.showerror('Connection Error', 'Connection with server closed unexpectedly, game will exit.')
@@ -137,9 +138,10 @@ if len(sys.argv) > 2:
 else:
     port = 23456
 
-root = tk.Tk()
-root.title('Battleships!!!')
-imgicon = tk.PhotoImage(file='docs/battleship.png')
-root.call('wm', 'iconphoto', root._w, imgicon)
-app = Application(port, master=root)
-app.mainloop()
+if __name__=="__main__":
+    root = tk.Tk()
+    root.title('Battleships!!!')
+    imgicon = tk.PhotoImage(file='docs/battleship.png')
+    root.call('wm', 'iconphoto', root._w, imgicon)
+    app = Application(port, master=root)
+    app.mainloop()

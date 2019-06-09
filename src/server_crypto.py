@@ -12,35 +12,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 class ServerCrypto(CryptoCommon):
     def __init__(self):
-        # retrieve rsa key stored in file, generate Diffie Hellman key pair and initiate the received nonces list
-        print('Retrieving server RSA private key')
-        self.rsa_privkey = self.retrieve_server_privkey()
-        print('Generating Diffie-Hellman key pair')
-        self.dh_pubkey = self.generate_dh_keypair()
-        print('Crypto intialising complete')
+        super().__init__()
         self.nonces = [b'\x00']
 
-    def retrieve_server_privkey(self):
-        # Retrieves the stored privte RSA key for the server
-        with open('.keys/bshipserverpriv.pem', 'rb') as kf:
-            rsa_privkey = serialization.load_pem_private_key(
-                kf.read(),
-                password=None,
-                backend=default_backend()
-            )
-            return rsa_privkey
-
-    def decrypt_msg_rsa(self, ciphertext):
-        # Decryption of messages for the starting of the game from the client. Uses padding and SHA-256 hash codes.
-        message = self.rsa_privkey.decrypt(
-            ciphertext,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        return message
 
     def encrypt_board(self, board):
         # Function encrypts a byte representation of the board using
