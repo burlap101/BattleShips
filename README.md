@@ -19,31 +19,14 @@ pip3 install numpy==1.16.2
 pip3 install cryptography==2.3
 ```
 
-## Client Package Compilation
-
-Since the game is now performed with encrypted communications as a key feature, a pair of RSA keys must be generated along with parameters for key exchange.  The compileGame.sh script handles this and needs to be run prior to starting a game (either client or server). The public RSA key, the Diffie-Hellman parameters and all files required are packaged to run a client from another host.:
-```bash
-./compileGame.sh
-```
-The resulting pacakage will be located in a file 'client.zip'.
-
-
-
 ## Usage
 
-To start a Battleships server, open a terminal and enter:
+To start a Battleships node, open a terminal and enter:
 ```bash
-./startServer.sh [port]  
+./startNode.sh <port> 
 ```
-Optional port argument will listen for client connections on that port.
-If omitted then the server will listen on port 23456.  
+Port argument will listen for connections on that port.  
 
-To start a client, extract the client.zip package, created during the compilation step, open another terminal or a terminal on another machine and enter:
-```bash
-./startClient.sh [host] [port]
-```
-None or both of the optional arguments must be specified for the client to execute.
-```host```  specifies the IP address or domain name of the battlehships server, which defaults to ```localhost``` (127.0.0.1), if omitted.
 ```port``` specifies the port that completes the TCP address for the listening socket of the server, which defaults to 23456 if omitted.
 
 ## Git Repo
