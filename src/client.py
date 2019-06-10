@@ -29,8 +29,8 @@ class ClientBackend():
         else:
             self.host = host
             self.port = port
-        self.crypto = ClientCrypto(self.host, self.port)
-        self.crypto.initiate_rsa()
+        self.crypto = ClientCrypto()
+        self.crypto.initiate_rsa("{}:{}".format(self.host, self.port))
         self.s = self.socket_setup()
 
 

@@ -11,9 +11,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 class ServerCrypto(CryptoCommon):
-    def __init__(self, peer_host, peer_port):
-        super().__init__(peer_host, peer_port)
-
+    def __init__(self):
+        super().__init__()
         self.nonces = [b'\x00']
 
 

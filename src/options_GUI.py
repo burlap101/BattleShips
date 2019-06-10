@@ -10,15 +10,22 @@ from tkinter import messagebox
 from tkinter import ttk
 from register_with_peer import RegisterPeer as rp
 from GUI import Application as GameGUI
-import socket
+import socket, threading
+from listener import Listener
+
+LISTENING_HOST = '127.0.0.1'
 
 class Application(tk.Frame):
     # GUI for the client using Tk
-    def __init__(self, master=None):
+    def __init__(self, port, master=None):
         super().__init__(master)
+        self.listener = Listener(port)
+        self.listen_thread = threading.Thread(target=self.listener.begin_selector, name='listener')
+        self.listen_thread.start()
         self.master = master
         self.pack()
         self.create_widgets()
+        self.node_name = "{}:{}".format(LISTENING_HOST, port)
 
     def create_widgets(self):
         # creating a grid of buttons to represent the board
@@ -56,7 +63,7 @@ class Application(tk.Frame):
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Initialising TCP socket
         s.connect((host, port))
-        if not rp.register(host, port, s):
+        if not rp.register(host, port, s, self.node_name):
             tk.messagebox.showerror('Processing error', 'There was a problem processing the given peer')
         s.close()
         self.reg_peer_top.grab_release()
@@ -64,23 +71,38 @@ class Application(tk.Frame):
 
     def start_game(self):
         print("refreshing peers...")
-        s = rp.refresh_peers()
-        game_top = tk.Toplevel()
-        game_top.grab_set()
-        game_top.title("BattleShips!!!")
-        imgicon = tk.PhotoImage(file='docs/battleship.png')
-        game_top.tk.call('wm', 'iconphoto', game_top._w, imgicon)
-        self.play_button.config(state='disabled')
-        GameGUI(master=game_top, s=s)
-        self.play_button.config(state='normal')     # TODO: stop user from making multiple games
+        try:
+            s = rp.refresh_peers(self.node_name)
+            game_top = tk.Toplevel()
+            game_top.grab_set()
+            game_top.title("BattleShips!!!")
+            imgicon = tk.PhotoImage(file='docs/battleship.png')
+            game_top.tk.call('wm', 'iconphoto', game_top._w, imgicon)
+            self.play_button.config(state='disabled')
+            GameGUI(master=game_top, s=s)
+            self.play_button.config(state='normal')
+        except ValueError:
+            tk.messagebox.showerror('No Peers', 'There are no peers available to play')
 
     def exit(self):
+        print(threading.enumerate())
         if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
+            self.listener.server_socket.shutdown(socket.SHUT_RDWR)
+            self.listener.server_socket.close()
+            try:
+                self.listen_thread.join(5)
+            except RuntimeError:
+                print("No listener threads found")
             self.master.destroy()
+
+port = int(sys.argv[1])
+if port <= 1024 or port > 65535:
+    print("Port Number outside of useable range")
+    raise ValueError
 
 root = tk.Tk()
 root.title('Node Options')
 imgicon = tk.PhotoImage(file='docs/battleship.png')
 root.call('wm', 'iconphoto', root._w, imgicon)
-app = Application(master=root)
+app = Application(port, master=root)
 app.mainloop()

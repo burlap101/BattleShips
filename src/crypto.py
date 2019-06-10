@@ -10,26 +10,24 @@ class CryptoCommon():
     # encrypted communications using the Fernet (Encrypt-then-MAC) approach.
     TTL = 600  # 10 minutes after creation, a Fernet token expires.
 
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
+    def __init__(self):
         print('Retrieving server RSA private key')
         self.rsa_privkey = self.retrieve_privkey()
         print('Completed')
         self.peer_rsa_pubkey = None
 
-    def initiate_rsa(self):
+    def initiate_rsa(self, node_name):
         print("Initiating RSA...")
-        self.peer_rsa_pubkey = self.retrieve_peer_pubkey(self.host, self.port)
+        self.peer_rsa_pubkey = self.retrieve_peer_pubkey(node_name)
         print("Done", self.peer_rsa_pubkey)
 
-    def retrieve_peer_pubkey(self, host, port):
+    def retrieve_peer_pubkey(self, node_name):
         with open('.keys/keylist.dat', 'r') as f:
             entries = json.load(f)
-        print("searching for: {}:{}".format(host, port))
+        print("searching for: ", node_name)
         for entry in entries:
             print(entry['name'])
-            if entry['name'] == "{}:{}".format(host, port):
+            if entry['name'] == node_name:
                 peer_rsa_pubkey = serialization.load_pem_public_key(
                 entry['key'].encode('ascii'),
                 backend=default_backend()

@@ -9,8 +9,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 class ClientCrypto(CryptoCommon):
 
-    def __init__(self, host, port):
-        super().__init__(host, port)
+    def __init__(self):
+        super().__init__()
         self.current_nonce = self.generate_initial_nonce()
         self.nonces = [self.current_nonce]
 

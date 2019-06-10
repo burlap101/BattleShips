@@ -30,9 +30,12 @@ def gen_keys():
         )
     print('Completed Successfully')
 
+
 if os.path.exists('.keys'):
     gen_keys()
 
 else:
     os.mkdir('.keys')
+    with open('.keys/keylist.dat', 'w') as f:
+        f.write('')
     gen_keys()

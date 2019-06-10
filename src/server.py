@@ -57,7 +57,7 @@ def accept_wrapper(key, mask):
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(conn, events, service_connection)
     print(conn.getpeername())
-    crypto[conn] = ServerCrypto(conn.getpeername()[0], conn.getpeername()[1])
+    crypto[conn] = ServerCrypto()
 
 def service_connection(key, mask):
     # function services the connections using a series of conditional statements
@@ -86,7 +86,7 @@ def service_connection(key, mask):
         recv_data = sock.recv(2048)
         messages = [b"IGNOREME"]
         dec_data = b""
-        print(recv_data)
+        #print(recv_data)
         # IDENTIFY the only unencrypted message to be received.
         if recv_data.split(EOM)[0] == b'IDENTIFY':
             sock.setblocking(True)
@@ -103,21 +103,23 @@ def service_connection(key, mask):
                 pubkey_loc = recv_data.find(b'-----BEGIN PUBLIC KEY-----')
                 if pubkey_loc >= 0:
                     peer_pubkey = recv_data[pubkey_loc:]
+                    node_name = id_messages[1].decode('ascii')
+                    print("\n\n******NODE NAME: ", node_name)
                     with open('.keys/keylist.dat', 'r') as f:
                         try:
                             entries = json.load(f)
                         except json.decoder.JSONDecodeError:
                             entries = []
                     for peer in entries:
-                        if peer['name'] == "{}:{}".format(sock.getpeername()[0],sock.getpeername()[1]):
+                        if peer['name'] == node_name:
                             entries.remove(peer)
                     with open('.keys/keylist.dat', 'w') as kl:
                         entries.append(dict([
-                            ('name', "{}:{}".format(sock.getpeername()[0], sock.getpeername()[1])),
+                            ('name', node_name),
                             ('key', peer_pubkey.decode('ascii'))
                         ]))
                         kl.write(json.dumps(entries))
-                    crypto[sock].initiate_rsa()
+                    crypto[sock].initiate_rsa(node_name)
                     sock.setblocking(False)
                 else:
                     print('Invalid key received. Closing connection: ', sock, flush=True)
@@ -136,7 +138,7 @@ def service_connection(key, mask):
             print('Connection closed by client: ', sock.getpeername(), flush=True)
             remove_all_associated_objects(sock)
 
-        print(messages)
+        #print(messages)
         if messages[0] == b'START_GAME':
             # print('DH Key Sent: ',signeddh)
             # Had to add catching of non-blocking exception to cope
@@ -153,8 +155,12 @@ def service_connection(key, mask):
             with open('.keys/keylist.dat', 'r') as kl:
                 peer_list = json.load(kl)
             for peer in peer_list:
+                print("**********************SENDING***************")
+                print("Name: ", peer['name'])
+                print("Key: ", peer['key'])
                 token = crypto[sock].encrypt_msg_rsa(peer['name'].encode('ascii') + EOM)
-                sock.sendall(token + peer['key'])
+                sock.sendall(token + peer['key'].encode('ascii'))
+
             token = crypto[sock].encrypt_msg_rsa(b'END OF PEER LIST' + EOM)
             sock.sendall(token)
         elif messages[0] == b'':
@@ -178,7 +184,7 @@ def service_connection(key, mask):
 
                 if messages[-1] == b'' and len(messages) > 1:
                     messages = messages[:-1]
-                print(messages)
+                #print(messages)
                 for message in messages:
                     turn_taken = active_games[sock].shot_fired(message.decode())
                     if message == b'BOARD':
@@ -215,7 +221,6 @@ def service_connection(key, mask):
                 else:
                     print('Invalid command received. Closing connection: ', sock, flush=True)
                     remove_all_associated_objects(sock)
-
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
